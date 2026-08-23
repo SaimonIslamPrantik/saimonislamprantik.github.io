@@ -1,1 +1,345 @@
-<h1>Bro's Cooking 🔥🔥</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>prantik | developer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="animated-bg"></div>
+    <div class="particles" id="particles"></div>
+
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="#" class="logo">/prantik</a>
+            <div class="nav-links">
+                <a href="#home" class="nav-link"><span class="nav-number">01</span>home</a>
+                <a href="#skills" class="nav-link"><span class="nav-number">02</span>skills</a>
+                <a href="#projects" class="nav-link"><span class="nav-number">03</span>projects</a>
+                <a href="#contact" class="nav-link"><span class="nav-number">04</span>contact</a>
+            </div>
+            <button class="menu-toggle" id="menu-toggle">
+                <div class="hamburger"></div>
+            </button>
+        </div>
+    </nav>
+
+    <main class="main">
+        <section id="home" class="hero">
+            <div class="hero-container">
+                <div class="hero-intro">
+                    <div class="intro-line">hi, i'm</div>
+                    <h1 class="hero-name">
+                        <span class="name-text"></span>
+                        <span class="cursor">|</span>
+                    </h1>
+                    <div class="hero-title">
+                        <span class="title-text">frontend developer</span>
+                    </div>
+                    <p class="hero-desc">
+                        building minimalist interfaces with maximal impact.
+                        focused on clean code, smooth animations, and pixel-perfect execution.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#contact" class="btn btn-primary">
+                            <span>get in touch</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        <a href="#projects" class="btn btn-secondary">
+                            <span>view projects</span>
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="visual-container">
+                        <div class="code-visual">
+                            <div class="code-line"></div>
+                            <div class="code-line"></div>
+                            <div class="code-line"></div>
+                            <div class="code-line"></div>
+                            <div class="code-line highlight"></div>
+                        </div>
+                        <div class="tech-icons">
+                            <div class="tech-icon"><i class="fab fa-react"></i></div>
+                            <div class="tech-icon"><i class="fab fa-js"></i></div>
+                            <div class="tech-icon"><i class="fab fa-html5"></i></div>
+                            <div class="tech-icon"><i class="fab fa-css3-alt"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills" class="skills">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-number">02</span>
+                    <span class="title-text">technical skills</span>
+                </h2>
+                <div class="section-desc">measured proficiency across core technologies</div>
+            </div>
+
+            <div class="skills-grid">
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <div class="skill-icon html-icon"><i class="fab fa-html5"></i></div>
+                        <div class="skill-info">
+                            <h3 class="skill-name">html</h3>
+                            <div class="skill-percentage">100%</div>
+                        </div>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" data-percentage="100" data-color="#5ba14e"></div>
+                    </div>
+                    <div class="skill-tags">
+                        <span class="skill-tag">semantic markup</span>
+                        <span class="skill-tag">accessibility</span>
+                        <span class="skill-tag">seo</span>
+                    </div>
+                </div>
+
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <div class="skill-icon css-icon"><i class="fab fa-css3-alt"></i></div>
+                        <div class="skill-info">
+                            <h3 class="skill-name">css</h3>
+                            <div class="skill-percentage">90%</div>
+                        </div>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" data-percentage="90" data-color="#c9da00"></div>
+                    </div>
+                    <div class="skill-tags">
+                        <span class="skill-tag">animations</span>
+                        <span class="skill-tag">flexbox</span>
+                        <span class="skill-tag">grid</span>
+                    </div>
+                </div>
+
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <div class="skill-icon c-icon"><i class="fas fa-code"></i></div>
+                        <div class="skill-info">
+                            <h3 class="skill-name">C</h3>
+                            <div class="skill-percentage">20%</div>
+                        </div>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" data-percentage="20" data-color="#5672d2"></div>
+                    </div>
+                    <div class="skill-tags">
+                        <span class="skill-tag">systems</span>
+                        <span class="skill-tag">algorithms</span>
+                        <span class="skill-tag">basics</span>
+                    </div>
+                </div>
+
+                <div class="skill-card">
+                    <div class="skill-header">
+                        <div class="skill-icon js-icon"><i class="fab fa-js"></i></div>
+                        <div class="skill-info">
+                            <h3 class="skill-name">javascript</h3>
+                            <div class="skill-percentage">15%</div>
+                        </div>
+                    </div>
+                    <div class="skill-bar">
+                        <div class="skill-progress" data-percentage="15" data-color="#5ba14e"></div>
+                    </div>
+                    <div class="skill-tags">
+                        <span class="skill-tag">es6+</span>
+                        <span class="skill-tag">dom</span>
+                        <span class="skill-tag">basics</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects" class="projects">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-number">03</span>
+                    <span class="title-text">selected projects</span>
+                </h2>
+                <div class="section-desc">personal projects and experiments</div>
+            </div>
+
+            <div class="projects-grid">
+                <div class="project-card">
+                    <div class="project-header">
+                        <div class="project-icon green-icon">
+                            <i class="fas fa-images"></i>
+                        </div>
+                        <div class="project-tags">
+                            <span class="project-tag">html</span>
+                            <span class="project-tag">css</span>
+                            <span class="project-tag">js</span>
+                        </div>
+                    </div>
+                    <h3 class="project-title">wallpaper repo</h3>
+                    <p class="project-desc">
+                        my fav wallpapers
+                    </p>
+                    <div class="project-footer">
+                        <a href="https://teenagetechbd.github.io/wallpapers/" class="project-link" target="_blank" rel="noopener">
+                            <span>view site</span>
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="project-card">
+                    <div class="project-header">
+                        <div class="project-icon blue-icon">
+                            <i class="fas fa-code"></i>
+                        </div>
+                        <div class="project-tags">
+                            <span class="project-tag">c</span>
+                            <span class="project-tag">programming</span>
+                            <span class="project-tag">learning</span>
+                        </div>
+                    </div>
+                    <h3 class="project-title">C basics</h3>
+                    <p class="project-desc">
+                        practice files of C
+                    </p>
+                    <div class="project-footer">
+                        <a href="https://github.com/SaimonIslamPrantik/c" class="project-link" target="_blank" rel="noopener">
+                            <span>view source</span>
+                            <i class="fab fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="project-card">
+                    <div class="project-header">
+                        <div class="project-icon yellow-icon">
+                            <i class="fas fa-keyboard"></i>
+                        </div>
+                        <div class="project-tags">
+                            <span class="project-tag">typing</span>
+                            <span class="project-tag">game</span>
+                            <span class="project-tag">js</span>
+                        </div>
+                    </div>
+                    <h3 class="project-title">typefast</h3>
+                    <p class="project-desc">
+                        monkeytype but better :P
+                    </p>
+                    <div class="project-footer">
+                        <a href="https://saimonislamprantik.github.io/TypeFree/" class="project-link" target="_blank" rel="noopener">
+                            <span>try it out</span>
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="contact">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-number">04</span>
+                    <span class="title-text">get in touch</span>
+                </h2>
+                <div class="section-desc">ready to collaborate on interesting projects</div>
+            </div>
+
+            <div class="contact-container">
+                <div class="contact-info">
+                    <h3 class="contact-subtitle">let's build something amazing</h3>
+                    <p class="contact-desc">
+                        i'm currently available for freelance work and open to discussing
+                        new opportunities. whether it's a website, application, or something
+                        experimental, i'd love to hear about it.
+                    </p>
+
+                    <div class="contact-methods">
+                        <a href="mailto:prantik@tuta.io" class="contact-method">
+                            <div class="method-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="method-info">
+                                <div class="method-label">email</div>
+                                <div class="method-value">prantik@tuta.io</div>
+                            </div>
+                        </a>
+
+                        <a href="https://github.com/SaimonIslamPrantik/" class="contact-method" target="_blank" rel="noopener">
+                            <div class="method-icon">
+                                <i class="fab fa-github"></i>
+                            </div>
+                            <div class="method-info">
+                                <div class="method-label">github</div>
+                                <div class="method-value">SaimonIslamPrantik</div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="social-links">
+                        <a href="https://github.com/SaimonIslamPrantik/" class="social-link" target="_blank" rel="noopener" title="github">
+                            <i class="fab fa-github"></i>
+                        </a>
+                        <a href="https://saimonislamprantik.github.io/TypeFree/" class="social-link" target="_blank" rel="noopener" title="typefast">
+                            <i class="fas fa-keyboard"></i>
+                        </a>
+                        <a href="https://teenagetechbd.github.io/wallpapers/" class="social-link" target="_blank" rel="noopener" title="wallpapers">
+                            <i class="fas fa-images"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <form class="contact-form" id="contact-form">
+                    <div class="form-group">
+                        <input type="text" name="name" placeholder="your name" required>
+                        <div class="form-line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <input type="email" name="email" placeholder="email address" required>
+                        <div class="form-line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <input type="text" name="subject" placeholder="subject" required>
+                        <div class="form-line"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <textarea name="message" placeholder="your message" rows="4" required></textarea>
+                        <div class="form-line"></div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span>send message</span>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-logo">/prantik</div>
+            <div class="footer-text">
+                <p>built with precision, executed with passion</p>
+                <p>© 2026 prantik. all lowercase, all the time.</p>
+            </div>
+            <div class="footer-links">
+                <a href="#home" class="footer-link">home</a>
+                <a href="#skills" class="footer-link">skills</a>
+                <a href="#projects" class="footer-link">projects</a>
+                <a href="#contact" class="footer-link">contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <div class="scroll-indicator" id="scroll-indicator"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
