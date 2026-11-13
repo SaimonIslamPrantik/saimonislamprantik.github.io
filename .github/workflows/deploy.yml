@@ -3,7 +3,7 @@ name: Deploy Website with Secrets
 on:
   push:
     branches:
-      - main  # Change to 'master' if your default branch is named master
+      - main  # or 'master' depending on your repo
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Inject Secrets into index.html
+      - name: Inject Secrets into index.html and console.html
         env:
           SP_URL: ${{ secrets.SUPABASE_URL }}
           SP_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -35,6 +35,10 @@ jobs:
           sed -i "s|__SUPABASE_KEY__|${SP_KEY}|g" index.html
           sed -i "s|__LASTFM_USER__|${LFM_USER}|g" index.html
           sed -i "s|__LASTFM_KEY__|${LFM_KEY}|g" index.html
+          sed -i "s|__SUPABASE_URL__|${SP_URL}|g" console.html
+          sed -i "s|__SUPABASE_KEY__|${SP_KEY}|g" console.html
+          sed -i "s|__LASTFM_USER__|${LFM_USER}|g" console.html
+          sed -i "s|__LASTFM_KEY__|${LFM_KEY}|g" console.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
