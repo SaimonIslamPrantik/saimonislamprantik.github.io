@@ -206,9 +206,14 @@
       transition: transform 0.15s ease;
     }
 
-    .btn-action:hover {
+    .btn-action:hover:not(:disabled) {
       transform: translate(-2px, -2px);
       background: #391f57;
+    }
+
+    .btn-action:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
     .btn-danger {
@@ -229,6 +234,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      cursor: pointer;
     }
 
     .admin-list-item {
@@ -262,7 +268,8 @@
           enter passcode to access prantik's console
         </p>
 
-        <form onsubmit="handleUnlock(event)">
+        <!-- Form prevents default submission natively -->
+        <form id="lockForm" onsubmit="event.preventDefault(); handleUnlock();">
           <div class="form-group" style="margin-bottom: 12px;">
             <input 
               type="password" 
@@ -271,12 +278,13 @@
               placeholder="••••" 
               style="text-align: center; font-size: 1.3rem; letter-spacing: 5px;" 
               autofocus 
+              required
             />
           </div>
           <div id="lockError" style="display: none; color: var(--coral); font-size: 0.82rem; font-weight: 800; margin-bottom: 14px;">
             Incorrect passcode. Try again.
           </div>
-          <button type="submit" class="btn-action" style="width: 100%;">Unlock Console</button>
+          <button type="submit" id="unlockBtn" class="btn-action" style="width: 100%;">Unlock Console</button>
         </form>
 
         <div style="margin-top: 18px;">
@@ -304,13 +312,13 @@
             <a href="index.html" class="btn-nav">← View Feed</a>
           </div>
         </div>
-        <div style="font-size: 0.85rem; font-weight: 700; color: #274b13;">
-          <i class="fa-solid fa-shield-halved"></i> Connected securely via GitHub Secrets. No credentials saved in browser storage.
+        <div id="dbStatusBadge" style="font-size: 0.85rem; font-weight: 700; color: #274b13;">
+          <i class="fa-solid fa-shield-halved"></i> Connected securely.
         </div>
       </div>
     </div>
 
-    <!-- Security: Change Password -->
+    <!-- Security: Change Password (Saved in Supabase) -->
     <div class="pop-shell">
       <div class="slide-card">
         <h2 style="font-size: 1.15rem; margin-bottom: 6px;">🔑 Console Security</h2>
@@ -328,7 +336,7 @@
             <input type="password" id="newPassInput" class="form-control" placeholder="New passcode" />
           </div>
         </div>
-        <button class="btn-action" onclick="changePasscode()">Update Passcode in Database</button>
+        <button class="btn-action" id="btnUpdatePass" onclick="changePasscode()">Update Passcode in Database</button>
       </div>
     </div>
 
@@ -411,12 +419,13 @@
   </div>
 
   <script>
-    /* ================= GITHUB SECRETS INJECTION ================= */
+    /* ================= CREDENTIALS ================= */
     const CONFIG_SUPABASE_URL = "__SUPABASE_URL__";
     const CONFIG_SUPABASE_KEY = "__SUPABASE_KEY__";
 
-    const SUPABASE_URL = CONFIG_SUPABASE_URL.startsWith('__') ? '' : CONFIG_SUPABASE_URL;
-    const SUPABASE_KEY = CONFIG_SUPABASE_KEY.startsWith('__') ? '' : CONFIG_SUPABASE_KEY;
+    // Read injected secrets or fallback to saved storage
+    const SUPABASE_URL = (CONFIG_SUPABASE_URL.startsWith('__') ? '' : CONFIG_SUPABASE_URL) || localStorage.getItem('SP_URL') || '';
+    const SUPABASE_KEY = (CONFIG_SUPABASE_KEY.startsWith('__') ? '' : CONFIG_SUPABASE_KEY) || localStorage.getItem('SP_KEY') || '';
     
     let db = null;
     let isUploadingImage = false;
@@ -425,149 +434,24 @@
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
-    /* ================= DATABASE PASSWORD ================= */
-    async function getDatabasePassword() {
-      if (!db) return '1234';
-      try {
-        const { data, error } = await db
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'console_pass')
-          .maybeSingle();
+    /* ================= FAIL-SAFE PASSWORD VERIFIER ================= */
+    async function getValidPassword() {
+      // 1. Try fetching from Supabase site_settings table
+      if (db) {
+        try {
+          const { data, error } = await db
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'console_pass')
+            .maybeSingle();
 
-        if (data && data.value) {
-          return data.value;
+          if (!error && data && data.value) {
+            return data.value;
+          }
+        } catch (err) {
+          console.warn('Database query bypassed:', err);
         }
-      } catch (err) {
-        console.warn('Could not read password from database:', err);
-      }
-      return '1234';
-    }
-
-    async function handleUnlock(e) {
-      if (e) e.preventDefault();
-      const entered = document.getElementById('passcodeInput').value.trim();
-      const dbPassword = await getDatabasePassword();
-
-      if (entered === dbPassword) {
-        document.getElementById('lockError').style.display = 'none';
-        document.getElementById('lockScreen').style.display = 'none';
-        document.getElementById('adminApp').style.display = 'flex';
-        sessionStorage.setItem('console_session_unlocked', 'true');
-        loadAdminPosts();
-      } else {
-        document.getElementById('lockError').style.display = 'block';
-        document.getElementById('passcodeInput').value = '';
-        document.getElementById('passcodeInput').focus();
-      }
-    }
-
-    function lockConsole() {
-      sessionStorage.removeItem('console_session_unlocked');
-      document.getElementById('adminApp').style.display = 'none';
-      document.getElementById('lockScreen').style.display = 'flex';
-      document.getElementById('passcodeInput').value = '';
-      document.getElementById('passcodeInput').focus();
-    }
-
-    async function changePasscode() {
-      if (!db) return alert('Database connection not established.');
-      
-      const curEntered = document.getElementById('currentPassInput').value.trim();
-      const newPass = document.getElementById('newPassInput').value.trim();
-      const dbPassword = await getDatabasePassword();
-
-      if (curEntered !== dbPassword) {
-        return alert('The current passcode you entered is incorrect.');
       }
 
-      if (!newPass) {
-        return alert('New passcode cannot be empty.');
-      }
-
-      const { error } = await db.from('site_settings').upsert([
-        { key: 'console_pass', value: newPass }
-      ]);
-
-      if (error) {
-        return alert('Failed to update password in database: ' + error.message);
-      }
-
-      document.getElementById('currentPassInput').value = '';
-      document.getElementById('newPassInput').value = '';
-      alert(`Passcode successfully updated in your database! Use "${newPass}" next time.`);
-    }
-
-    /* ================= FILE UPLOAD ================= */
-    const dropzone = document.getElementById('dropzone');
-    ['dragenter', 'dragover'].forEach(name => {
-      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
-    });
-    ['dragleave', 'drop'].forEach(name => {
-      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); });
-    });
-    dropzone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      if (dt.files && dt.files.length > 0) handleFileSelect(dt.files);
-    });
-
-    async function handleFileSelect(files) {
-      if (!files || files.length === 0) return;
-      const file = files[0];
-      if (!file.type.startsWith('image/')) return alert('Please select a valid image file.');
-      if (!db) return alert('Database is not connected. Check GitHub Secrets.');
-
-      const previewWrapper = document.getElementById('previewWrapper');
-      const previewImg = document.getElementById('previewImg');
-      const previewName = document.getElementById('previewName');
-      const previewStatus = document.getElementById('previewStatus');
-
-      previewImg.src = URL.createObjectURL(file);
-      previewName.textContent = file.name;
-      previewStatus.innerHTML = '<span style="color: var(--deep-purple);"><i class="fa-solid fa-spinner fa-spin"></i> Uploading to Supabase Storage...</span>';
-      previewWrapper.style.display = 'flex';
-      isUploadingImage = true;
-
-      try {
-        const fileExt = file.name.split('.').pop();
-        const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-        const filePath = `${cleanName}`;
-
-        const { data, error } = await db.storage
-          .from('post-images')
-          .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-        if (error) throw error;
-
-        const { data: urlData } = db.storage.from('post-images').getPublicUrl(filePath);
-        document.getElementById('postImgUrl').value = urlData.publicUrl;
-        previewStatus.innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Uploaded!</span>';
-      } catch (err) {
-        previewStatus.innerHTML = `<span style="color: var(--coral);"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${err.message}</span>`;
-        alert(`Upload error: ${err.message}\nMake sure 'post-images' bucket is created in Supabase!`);
-      } finally {
-        isUploadingImage = false;
-      }
-    }
-
-    function removeImage() {
-      document.getElementById('fileInput').value = '';
-      document.getElementById('postImgUrl').value = '';
-      document.getElementById('manualImgInput').value = '';
-      document.getElementById('previewWrapper').style.display = 'none';
-      document.getElementById('previewImg').src = '';
-    }
-
-    function toggleManualUrl() {
-      const g = document.getElementById('manualUrlGroup');
-      g.style.display = g.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function handleManualUrl(val) {
-      document.getElementById('postImgUrl').value = val.trim();
-      if (val.trim()) {
-        document.getElementById('previewImg').src = val.trim();
-        document.getElementById('previewName').textContent = 'External Image Link';
-        document.getElementById('previewStatus').innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Linked</span>';
-        document.getElementById('previewWrapper').style.display = 'flex';
-    
+      // 2. Fallback to localStorage (if changed previously) or default '1234'
+      return localStorage.getItem
