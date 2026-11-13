@@ -226,6 +226,9 @@
       font-weight: 800;
       font-size: 0.85rem;
       box-shadow: 3px 3px 0 var(--border-crisp);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .admin-list-item {
@@ -238,11 +241,54 @@
       align-items: flex-start;
       gap: 16px;
     }
+
+    /* Lock Screen Layout */
+    .lock-screen-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 70vh;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <!-- ================= PASSCODE LOCK SCREEN ================= -->
+  <div id="lockScreen" class="lock-screen-container">
+    <div class="pop-shell" style="max-width: 440px; width: 100%;">
+      <div class="slide-card" style="padding: 34px 28px; text-align: center;">
+        <h1 style="font-family: 'Darumadrop One', cursive; font-size: 2.4rem; margin-bottom: 4px;">locked</h1>
+        <p style="font-size: 0.88rem; color: var(--text-muted); font-weight: 700; margin-bottom: 22px;">
+          enter passcode to access prantik's console
+        </p>
+
+        <form onsubmit="handleUnlock(event)">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <input 
+              type="password" 
+              id="passcodeInput" 
+              class="form-control" 
+              placeholder="••••" 
+              style="text-align: center; font-size: 1.3rem; letter-spacing: 5px;" 
+              autofocus 
+            />
+          </div>
+          <div id="lockError" style="display: none; color: var(--coral); font-size: 0.82rem; font-weight: 800; margin-bottom: 14px;">
+            Incorrect passcode. Try again.
+          </div>
+          <button type="submit" class="btn-action" style="width: 100%;">Unlock Console</button>
+        </form>
+
+        <div style="margin-top: 18px;">
+          <a href="index.html" class="btn-nav">← Back to Public Feed</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= UNLOCKED ADMIN CONSOLE ================= -->
+  <div id="adminApp" class="container" style="display: none;">
     
     <!-- Header -->
     <div class="pop-shell">
@@ -252,7 +298,12 @@
             <h1>secret console</h1>
             <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">prantik's content management system</p>
           </div>
-          <a href="index.html" class="btn-nav">← View Public Feed</a>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-nav" style="background: var(--lavender);" onclick="lockConsole()">
+              <i class="fa-solid fa-lock"></i> Lock
+            </button>
+            <a href="index.html" class="btn-nav">← View Feed</a>
+          </div>
         </div>
 
         <h2 style="font-size: 1.15rem; margin-bottom: 10px;">⚙️ Supabase Setup</h2>
@@ -265,6 +316,28 @@
           <input type="password" id="spKey" class="form-control" placeholder="eyJhbGciOi..." />
         </div>
         <button class="btn-action" onclick="saveCredentials()">Save Database Credentials</button>
+      </div>
+    </div>
+
+    <!-- Security / Change Password Section -->
+    <div class="pop-shell">
+      <div class="slide-card">
+        <h2 style="font-size: 1.15rem; margin-bottom: 6px;">🔑 Console Security</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+          Change your console passcode anytime. Default is <code>1234</code>.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+          <div class="form-group">
+            <label>Current Passcode</label>
+            <input type="password" id="currentPassInput" class="form-control" placeholder="Current passcode" />
+          </div>
+          <div class="form-group">
+            <label>New Passcode</label>
+            <input type="password" id="newPassInput" class="form-control" placeholder="New passcode" />
+          </div>
+        </div>
+        <button class="btn-action" onclick="changePasscode()">Update Passcode</button>
       </div>
     </div>
 
@@ -362,14 +435,90 @@
   </div>
 
   <script>
+    /* ================= PASSCODE & SECURITY LOGIC ================= */
     let SP_URL = localStorage.getItem('SP_URL') || '';
     let SP_KEY = localStorage.getItem('SP_KEY') || '';
     let db = null;
     let isUploadingImage = false;
 
+    // Fetch the active password (defaults to '1234')
+    function getActivePassword() {
+      return localStorage.getItem('CONSOLE_PASS') || '1234';
+    }
+
+    // Try to sync password from Supabase site_settings if available
+    async function syncPasswordFromSupabase() {
+      if (db) {
+        try {
+          const { data } = await db.from('site_settings').select('*').eq('key', 'console_pass').single();
+          if (data && data.value) {
+            localStorage.setItem('CONSOLE_PASS', data.value);
+          }
+        } catch (e) {}
+      }
+    }
+
+    function handleUnlock(e) {
+      if (e) e.preventDefault();
+      const entered = document.getElementById('passcodeInput').value.trim();
+      const current = getActivePassword();
+
+      if (entered === current) {
+        document.getElementById('lockError').style.display = 'none';
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'flex';
+        sessionStorage.setItem('console_unlocked', 'true');
+        loadAdminPosts();
+      } else {
+        document.getElementById('lockError').style.display = 'block';
+        document.getElementById('passcodeInput').value = '';
+        document.getElementById('passcodeInput').focus();
+      }
+    }
+
+    function lockConsole() {
+      sessionStorage.removeItem('console_unlocked');
+      document.getElementById('adminApp').style.display = 'none';
+      document.getElementById('lockScreen').style.display = 'flex';
+      document.getElementById('passcodeInput').value = '';
+      document.getElementById('passcodeInput').focus();
+    }
+
+    async function changePasscode() {
+      const curEntered = document.getElementById('currentPassInput').value.trim();
+      const newPass = document.getElementById('newPassInput').value.trim();
+      const activePass = getActivePassword();
+
+      if (curEntered !== activePass) {
+        return alert('The current passcode you entered is incorrect.');
+      }
+
+      if (!newPass) {
+        return alert('New passcode cannot be empty.');
+      }
+
+      // 1. Update in local storage
+      localStorage.setItem('CONSOLE_PASS', newPass);
+
+      // 2. Sync to Supabase site_settings so it works across all devices
+      if (db) {
+        try {
+          await db.from('site_settings').upsert([{ key: 'console_pass', value: newPass }]);
+        } catch (err) {
+          console.warn('Could not sync password to Supabase:', err);
+        }
+      }
+
+      document.getElementById('currentPassInput').value = '';
+      document.getElementById('newPassInput').value = '';
+      alert(`Passcode successfully changed! From now on, use "${newPass}" to enter.`);
+    }
+
+    /* ================= SUPABASE CLIENT INIT ================= */
     function initClient() {
       if (SP_URL && SP_KEY && window.supabase) {
         db = window.supabase.createClient(SP_URL, SP_KEY);
+        syncPasswordFromSupabase();
       }
     }
 
@@ -395,7 +544,6 @@
       localStorage.setItem('LASTFM_USER', u);
       localStorage.setItem('LASTFM_KEY', k);
 
-      // Save to Supabase site_settings so all public visitors can read it
       if (db) {
         try {
           await db.from('site_settings').upsert([
@@ -410,7 +558,7 @@
       alert('Last.fm configuration saved! Check index.html to see your live listening bubble.');
     }
 
-    /* File dropzone */
+    /* ================= FILE UPLOAD DROPZONE ================= */
     const dropzone = document.getElementById('dropzone');
     ['dragenter', 'dragover'].forEach(name => {
       dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -427,7 +575,7 @@
       if (!files || files.length === 0) return;
       const file = files[0];
       if (!file.type.startsWith('image/')) return alert('Please select a valid image file.');
-      if (!db) return alert('Configure Supabase above before uploading images.');
+      if (!db) return alert('Configure Supabase credentials above before uploading images.');
 
       const previewWrapper = document.getElementById('previewWrapper');
       const previewImg = document.getElementById('previewImg');
@@ -492,6 +640,7 @@
       document.getElementById('videoFieldGroup').style.display = box.checked ? 'flex' : 'none';
     }
 
+    /* ================= POST MANAGEMENT ================= */
     async function loadAdminPosts() {
       const container = document.getElementById('postsList');
       if (!db) {
@@ -648,13 +797,17 @@
       return (str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     }
 
-    // Startup
+    // Startup check: is session already unlocked?
+    if (sessionStorage.getItem('console_unlocked') === 'true') {
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'flex';
+    }
+
     document.getElementById('spUrl').value = SP_URL;
     document.getElementById('spKey').value = SP_KEY;
     document.getElementById('lastfmUser').value = localStorage.getItem('LASTFM_USER') || '';
     document.getElementById('lastfmKey').value = localStorage.getItem('LASTFM_KEY') || '';
     initClient();
-    loadAdminPosts();
   </script>
 </body>
 </html>
