@@ -1,0 +1,49 @@
+name: Deploy Website with Secrets
+
+on:
+  push:
+    branches:
+      - main  # Change to 'master' if your default branch is named master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Inject Secrets into index.html
+        env:
+          SP_URL: ${{ secrets.SUPABASE_URL }}
+          SP_KEY: ${{ secrets.SUPABASE_KEY }}
+          LFM_USER: ${{ secrets.LASTFM_USER }}
+          LFM_KEY: ${{ secrets.LASTFM_KEY }}
+        run: |
+          sed -i "s|__SUPABASE_URL__|${SP_URL}|g" index.html
+          sed -i "s|__SUPABASE_KEY__|${SP_KEY}|g" index.html
+          sed -i "s|__LASTFM_USER__|${LFM_USER}|g" index.html
+          sed -i "s|__LASTFM_KEY__|${LFM_KEY}|g" index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
