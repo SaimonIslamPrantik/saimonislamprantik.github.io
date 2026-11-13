@@ -268,24 +268,22 @@
           enter passcode to access prantik's console
         </p>
 
-        <!-- Form prevents default submission natively -->
-        <form id="lockForm" onsubmit="event.preventDefault(); handleUnlock();">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <input 
-              type="password" 
-              id="passcodeInput" 
-              class="form-control" 
-              placeholder="••••" 
-              style="text-align: center; font-size: 1.3rem; letter-spacing: 5px;" 
-              autofocus 
-              required
-            />
-          </div>
-          <div id="lockError" style="display: none; color: var(--coral); font-size: 0.82rem; font-weight: 800; margin-bottom: 14px;">
-            Incorrect passcode. Try again.
-          </div>
-          <button type="submit" id="unlockBtn" class="btn-action" style="width: 100%;">Unlock Console</button>
-        </form>
+        <!-- Direct keydown to prevent form refresh -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <input 
+            type="password" 
+            id="passcodeInput" 
+            class="form-control" 
+            placeholder="••••" 
+            style="text-align: center; font-size: 1.3rem; letter-spacing: 5px;" 
+            onkeydown="if(event.key==='Enter') handleUnlock();"
+            autofocus 
+          />
+        </div>
+        
+        <div id="lockError" style="display: none; color: var(--coral); font-size: 0.85rem; font-weight: 800; margin-bottom: 14px;"></div>
+        
+        <button type="button" id="unlockBtn" class="btn-action" style="width: 100%;" onclick="handleUnlock()">Unlock Console</button>
 
         <div style="margin-top: 18px;">
           <a href="index.html" class="btn-nav">← Back to Public Feed</a>
@@ -313,12 +311,12 @@
           </div>
         </div>
         <div id="dbStatusBadge" style="font-size: 0.85rem; font-weight: 700; color: #274b13;">
-          <i class="fa-solid fa-shield-halved"></i> Connected securely.
+          <i class="fa-solid fa-shield-halved"></i> Protected by database passcode.
         </div>
       </div>
     </div>
 
-    <!-- Security: Change Password (Saved in Supabase) -->
+    <!-- Security: Change Password -->
     <div class="pop-shell">
       <div class="slide-card">
         <h2 style="font-size: 1.15rem; margin-bottom: 6px;">🔑 Console Security</h2>
@@ -336,7 +334,7 @@
             <input type="password" id="newPassInput" class="form-control" placeholder="New passcode" />
           </div>
         </div>
-        <button class="btn-action" id="btnUpdatePass" onclick="changePasscode()">Update Passcode in Database</button>
+        <button class="btn-action" id="btnUpdatePass" onclick="changePasscode()">Update Passcode</button>
       </div>
     </div>
 
@@ -423,7 +421,6 @@
     const CONFIG_SUPABASE_URL = "__SUPABASE_URL__";
     const CONFIG_SUPABASE_KEY = "__SUPABASE_KEY__";
 
-    // Read injected secrets or fallback to saved storage
     const SUPABASE_URL = (CONFIG_SUPABASE_URL.startsWith('__') ? '' : CONFIG_SUPABASE_URL) || localStorage.getItem('SP_URL') || '';
     const SUPABASE_KEY = (CONFIG_SUPABASE_KEY.startsWith('__') ? '' : CONFIG_SUPABASE_KEY) || localStorage.getItem('SP_KEY') || '';
     
@@ -434,24 +431,160 @@
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
-    /* ================= FAIL-SAFE PASSWORD VERIFIER ================= */
+    /* ================= STRICT PASSWORD VERIFICATION ================= */
     async function getValidPassword() {
-      // 1. Try fetching from Supabase site_settings table
+      // 1. Check Supabase database
       if (db) {
         try {
-          const { data, error } = await db
+          const queryPromise = db
             .from('site_settings')
             .select('value')
             .eq('key', 'console_pass')
             .maybeSingle();
 
-          if (!error && data && data.value) {
-            return data.value;
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('timeout')), 2000)
+          );
+
+          const res = await Promise.race([queryPromise, timeoutPromise]);
+          if (res && res.data && res.data.value) {
+            return res.data.value.trim();
           }
         } catch (err) {
-          console.warn('Database query bypassed:', err);
+          console.warn('Could not query database passcode:', err);
         }
       }
 
-      // 2. Fallback to localStorage (if changed previously) or default '1234'
-      return localStorage.getItem
+      // 2. Check local storage if saved offline, or default 1234
+      return (localStorage.getItem('CONSOLE_PASS') || '1234').trim();
+    }
+
+    async function handleUnlock() {
+      const inputEl = document.getElementById('passcodeInput');
+      const btnEl = document.getElementById('unlockBtn');
+      const errorEl = document.getElementById('lockError');
+      const entered = inputEl.value.trim();
+
+      if (!entered) {
+        errorEl.textContent = 'Please enter your passcode.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+      errorEl.style.display = 'none';
+
+      try {
+        const activePass = await getValidPassword();
+
+        // Strict: only allows the exact currently active password
+        if (entered === activePass) {
+          errorEl.style.display = 'none';
+          document.getElementById('lockScreen').style.display = 'none';
+          document.getElementById('adminApp').style.display = 'flex';
+          sessionStorage.setItem('console_session_unlocked', 'true');
+          loadAdminPosts();
+        } else {
+          errorEl.textContent = 'Incorrect passcode. Try again.';
+          errorEl.style.display = 'block';
+          inputEl.value = '';
+          inputEl.focus();
+        }
+      } catch (err) {
+        console.error('Unlock error:', err);
+        errorEl.textContent = 'Error: ' + err.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btnEl.disabled = false;
+        btnEl.innerHTML = 'Unlock Console';
+      }
+    }
+
+    function lockConsole() {
+      sessionStorage.removeItem('console_session_unlocked');
+      document.getElementById('adminApp').style.display = 'none';
+      document.getElementById('lockScreen').style.display = 'flex';
+      const inputEl = document.getElementById('passcodeInput');
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.focus();
+      }
+    }
+
+    async function changePasscode() {
+      const curEntered = document.getElementById('currentPassInput').value.trim();
+      const newPass = document.getElementById('newPassInput').value.trim();
+      const btnEl = document.getElementById('btnUpdatePass');
+
+      if (!curEntered || !newPass) {
+        return alert('Please enter both your current and new passcode.');
+      }
+
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const activePass = await getValidPassword();
+        if (curEntered !== activePass) {
+          btnEl.disabled = false;
+          btnEl.innerHTML = 'Update Passcode';
+          return alert('The current passcode you entered is incorrect.');
+        }
+
+        if (db) {
+          const { error } = await db.from('site_settings').upsert([
+            { key: 'console_pass', value: newPass }
+          ]);
+          if (error) throw error;
+        }
+
+        localStorage.setItem('CONSOLE_PASS', newPass);
+
+        document.getElementById('currentPassInput').value = '';
+        document.getElementById('newPassInput').value = '';
+        alert(`Passcode successfully updated in database! From now on, use your new passcode.`);
+      } catch (err) {
+        alert('Error updating passcode in database: ' + err.message);
+      } finally {
+        btnEl.disabled = false;
+        btnEl.innerHTML = 'Update Passcode';
+      }
+    }
+
+    /* ================= FILE UPLOAD ================= */
+    const dropzone = document.getElementById('dropzone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); });
+    });
+    dropzone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length > 0) handleFileSelect(dt.files);
+    });
+
+    async function handleFileSelect(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      if (!file.type.startsWith('image/')) return alert('Please select a valid image file.');
+      if (!db) return alert('Database is not connected. Check credentials.');
+
+      const previewWrapper = document.getElementById('previewWrapper');
+      const previewImg = document.getElementById('previewImg');
+      const previewName = document.getElementById('previewName');
+      const previewStatus = document.getElementById('previewStatus');
+
+      previewImg.src = URL.createObjectURL(file);
+      previewName.textContent = file.name;
+      previewStatus.innerHTML = '<span style="color: var(--deep-purple);"><i class="fa-solid fa-spinner fa-spin"></i> Uploading...</span>';
+      previewWrapper.style.display = 'flex';
+      isUploadingImage = true;
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const filePath = `${cleanName}`;
+
+        con
