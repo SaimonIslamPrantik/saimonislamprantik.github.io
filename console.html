@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>console— prantik</title>
+  <title>console.html — prantik</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -188,7 +188,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin: 12px 0;
+      margin: 10px 0;
       font-weight: 700;
       font-size: 0.9rem;
       cursor: pointer;
@@ -310,7 +310,7 @@
       </div>
     </div>
 
-    <!-- Security: Change Password (Saved Directly in Supabase) -->
+    <!-- Security: Change Password -->
     <div class="pop-shell">
       <div class="slide-card">
         <h2 style="font-size: 1.15rem; margin-bottom: 6px;">🔑 Console Security</h2>
@@ -341,10 +341,16 @@
 
         <div class="form-group">
           <label>Post Text</label>
-          <textarea id="postText" class="form-control" rows="4" placeholder="Write your thoughts, physics derivations, math notes, or music logs..."></textarea>
+          <textarea id="postText" class="form-control" rows="5" placeholder="Write your thoughts, code snippets, physics equations, or notes..."></textarea>
         </div>
 
-        <div class="form-group">
+        <!-- Markdown Option Toggle -->
+        <label class="checkbox-row" style="background: #faf8fd; padding: 10px; border: 1px solid var(--border-crisp);">
+          <input type="checkbox" id="markdownToggle" />
+          <span><i class="fa-brands fa-markdown"></i> Format with Markdown (MD)</span>
+        </label>
+
+        <div class="form-group" style="margin-top: 10px;">
           <label>Attach Image (Auto Upload)</label>
           
           <div class="file-dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
@@ -405,7 +411,7 @@
   </div>
 
   <script>
-    /* ================= INJECTED VIA GITHUB ACTIONS ================= */
+    /* ================= GITHUB SECRETS INJECTION ================= */
     const CONFIG_SUPABASE_URL = "__SUPABASE_URL__";
     const CONFIG_SUPABASE_KEY = "__SUPABASE_KEY__";
 
@@ -419,7 +425,7 @@
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
-    /* ================= DATABASE-BACKED PASSWORD LOGIC ================= */
+    /* ================= DATABASE PASSWORD ================= */
     async function getDatabasePassword() {
       if (!db) return '1234';
       try {
@@ -435,7 +441,7 @@
       } catch (err) {
         console.warn('Could not read password from database:', err);
       }
-      return '1234'; // Default password
+      return '1234';
     }
 
     async function handleUnlock(e) {
@@ -479,7 +485,6 @@
         return alert('New passcode cannot be empty.');
       }
 
-      // Save directly into the Supabase site_settings table
       const { error } = await db.from('site_settings').upsert([
         { key: 'console_pass', value: newPass }
       ]);
@@ -493,7 +498,7 @@
       alert(`Passcode successfully updated in your database! Use "${newPass}" next time.`);
     }
 
-    /* ================= FILE UPLOAD DROPZONE ================= */
+    /* ================= FILE UPLOAD ================= */
     const dropzone = document.getElementById('dropzone');
     ['dragenter', 'dragover'].forEach(name => {
       dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -565,179 +570,4 @@
         document.getElementById('previewName').textContent = 'External Image Link';
         document.getElementById('previewStatus').innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Linked</span>';
         document.getElementById('previewWrapper').style.display = 'flex';
-      } else {
-        removeImage();
-      }
-    }
-
-    function toggleVideoField() {
-      const box = document.getElementById('videoToggle');
-      document.getElementById('videoFieldGroup').style.display = box.checked ? 'flex' : 'none';
-    }
-
-    /* ================= POST MANAGEMENT ================= */
-    async function loadAdminPosts() {
-      const container = document.getElementById('postsList');
-      if (!db) {
-        container.innerHTML = `<p style="color: var(--coral);">Database credentials not injected yet.</p>`;
-        return;
-      }
-
-      const { data, error } = await db
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        container.innerHTML = `<p style="color: var(--coral);">${error.message}</p>`;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        container.innerHTML = `<p style="color: var(--text-muted);">No posts published yet.</p>`;
-        return;
-      }
-
-      container.innerHTML = '';
-      data.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'admin-list-item';
-        item.innerHTML = `
-          <div style="flex: 1;">
-            <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 4px;">
-              ${escapeHTML(p.content.substring(0, 100))}${p.content.length > 100 ? '...' : ''}
-            </div>
-            <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
-              Date: ${new Date(p.created_at).toLocaleString()} | Votes: ${p.votes} | 
-              ${p.image_url ? '📷 Image' : 'No image'} | 
-              ${p.video_url ? '🎬 Video' : 'No video'}
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-action" style="padding: 6px 14px; font-size: 0.8rem;" onclick="startEdit('${p.id}', \`${escapeJS(p.content)}\`, '${p.image_url || ''}', '${p.video_url || ''}')">
-              <i class="fa-solid fa-pen"></i> Edit
-            </button>
-            <button class="btn-action btn-danger" style="padding: 6px 14px; font-size: 0.8rem;" onclick="deletePost('${p.id}')">
-              <i class="fa-solid fa-trash"></i> Delete
-            </button>
-          </div>
-        `;
-        container.appendChild(item);
-      });
-    }
-
-    async function savePost() {
-      if (!db) return alert('Database connection not established.');
-      if (isUploadingImage) return alert('Please wait for the image upload to finish.');
-
-      const content = document.getElementById('postText').value.trim();
-      const imageUrl = document.getElementById('postImgUrl').value.trim();
-      const hasVid = document.getElementById('videoToggle').checked;
-      const videoUrl = hasVid ? document.getElementById('postVid').value.trim() : null;
-      const editId = document.getElementById('editId').value;
-
-      if (!content) return alert('Post content cannot be empty.');
-
-      if (editId) {
-        const { error } = await db.from('posts').update({
-          content: content,
-          image_url: imageUrl || null,
-          video_url: videoUrl || null
-        }).eq('id', editId);
-
-        if (error) return alert('Update failed: ' + error.message);
-        alert('Post updated!');
-        resetEdit();
-      } else {
-        const { error } = await db.from('posts').insert([{
-          content: content,
-          image_url: imageUrl || null,
-          video_url: videoUrl || null,
-          votes: 1
-        }]);
-
-        if (error) return alert('Publishing failed: ' + error.message);
-        alert('Post published!');
-        clearForm();
-      }
-
-      loadAdminPosts();
-    }
-
-    function startEdit(id, content, img, vid) {
-      document.getElementById('editId').value = id;
-      document.getElementById('postText').value = content;
-      document.getElementById('postImgUrl').value = img;
-
-      if (img) {
-        document.getElementById('previewImg').src = img;
-        document.getElementById('previewName').textContent = 'Attached Image';
-        document.getElementById('previewStatus').innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Current Image</span>';
-        document.getElementById('previewWrapper').style.display = 'flex';
-      } else {
-        removeImage();
-      }
-      
-      const toggle = document.getElementById('videoToggle');
-      const vidInput = document.getElementById('postVid');
-      if (vid) {
-        toggle.checked = true;
-        vidInput.value = vid;
-        document.getElementById('videoFieldGroup').style.display = 'flex';
-      } else {
-        toggle.checked = false;
-        vidInput.value = '';
-        document.getElementById('videoFieldGroup').style.display = 'none';
-      }
-
-      document.getElementById('formHeading').textContent = '✏️ Edit Post';
-      document.getElementById('btnSubmit').textContent = 'Save Changes';
-      document.getElementById('btnCancel').style.display = 'inline-block';
-      window.scrollTo({ top: 340, behavior: 'smooth' });
-    }
-
-    function resetEdit() {
-      clearForm();
-      document.getElementById('editId').value = '';
-      document.getElementById('formHeading').textContent = '✍️ Post New Content';
-      document.getElementById('btnSubmit').textContent = 'Publish to Feed';
-      document.getElementById('btnCancel').style.display = 'none';
-    }
-
-    function clearForm() {
-      document.getElementById('postText').value = '';
-      document.getElementById('postVid').value = '';
-      document.getElementById('videoToggle').checked = false;
-      document.getElementById('videoFieldGroup').style.display = 'none';
-      removeImage();
-    }
-
-    async function deletePost(id) {
-      if (!confirm('Are you sure you want to permanently delete this post?')) return;
-      const { error } = await db.from('posts').delete().eq('id', id);
-      if (error) {
-        alert('Delete failed: ' + error.message);
-      } else {
-        loadAdminPosts();
-      }
-    }
-
-    function escapeHTML(str) {
-      return (str || '').replace(/[&<>'"]/g, 
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-      );
-    }
-
-    function escapeJS(str) {
-      return (str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-    }
-
-    // Check in-memory session
-    if (sessionStorage.getItem('console_session_unlocked') === 'true') {
-      document.getElementById('lockScreen').style.display = 'none';
-      document.getElementById('adminApp').style.display = 'flex';
-      loadAdminPosts();
-    }
-  </script>
-</body>
-</html>
+    
