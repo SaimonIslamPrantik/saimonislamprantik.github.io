@@ -10,6 +10,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Darumadrop+One&family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   
   <style>
     :root {
@@ -33,7 +35,7 @@
       border-radius: 0 !important;
     }
 
-    body, button, input, textarea {
+    body, button, input, textarea, select {
       font-family: 'Hanken Grotesk', sans-serif;
     }
 
@@ -116,6 +118,64 @@
       background: #ffffff;
       box-shadow: 3px 3px 0 var(--lavender);
     }
+
+    .format-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .format-select-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .format-select {
+      width: auto;
+      min-width: 210px;
+      padding: 7px 12px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .md-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      background: #f6f1fc;
+      border: 1px dashed var(--border-crisp);
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      display: none;
+    }
+
+    .md-preview-box {
+      display: none;
+      border: 2px solid var(--border-crisp);
+      background: #ffffff;
+      padding: 14px 16px;
+      min-height: 112px;
+      line-height: 1.65;
+      font-size: 0.96rem;
+    }
+
+    .md-preview-box h1, .md-preview-box h2, .md-preview-box h3 { margin: 0.8em 0 0.4em; font-weight: 800; }
+    .md-preview-box h1:first-child, .md-preview-box h2:first-child, .md-preview-box p:first-child { margin-top: 0; }
+    .md-preview-box p { margin-bottom: 0.75em; }
+    .md-preview-box ul, .md-preview-box ol { padding-left: 1.5em; margin-bottom: 0.75em; }
+    .md-preview-box blockquote { border-left: 4px solid var(--border-crisp); background: #faf8fd; padding: 8px 12px; margin: 0.75em 0; color: var(--text-muted); }
+    .md-preview-box code { font-family: ui-monospace, monospace; background: #faf8fd; border: 1px solid rgba(76,44,114,0.3); padding: 1px 4px; font-size: 0.86em; }
+    .md-preview-box pre { background: #1b1229; color: #f0eaff; padding: 10px 12px; overflow-x: auto; margin: 0.75em 0; border: 2px solid var(--border-crisp); }
+    .md-preview-box pre code { background: transparent; border: none; color: inherit; padding: 0; }
+    .md-preview-box table { border-collapse: collapse; width: 100%; margin: 0.75em 0; }
+    .md-preview-box th, .md-preview-box td { border: 2px solid var(--border-crisp); padding: 6px 10px; text-align: left; }
+    .md-preview-box th { background: var(--lavender); }
 
     .file-dropzone {
       border: 2px dashed var(--border-crisp);
@@ -209,6 +269,21 @@
     .btn-action:hover {
       transform: translate(-2px, -2px);
       background: #391f57;
+    }
+
+    .btn-secondary {
+      background: var(--lavender);
+      color: var(--deep-purple);
+      border: 2px solid var(--border-crisp);
+      padding: 6px 12px;
+      font-weight: 800;
+      font-size: 0.8rem;
+      cursor: pointer;
+      box-shadow: 2px 2px 0 var(--border-crisp);
+    }
+
+    .btn-secondary:hover {
+      background: var(--soft-cyan);
     }
 
     .btn-danger {
@@ -340,8 +415,26 @@
         <input type="hidden" id="postImgUrl" value="" />
 
         <div class="form-group">
-          <label>Post Text</label>
-          <textarea id="postText" class="form-control" rows="4" placeholder="Write your thoughts, physics derivations, math notes, or music logs..."></textarea>
+          <div class="format-row">
+            <label for="postFormat">Post Format</label>
+            <div class="format-select-group">
+              <select id="postFormat" class="form-control format-select" onchange="handleFormatChange()">
+                <option value="plain">Plain Text (Standard)</option>
+                <option value="markdown">Markdown (MD)</option>
+              </select>
+              <button type="button" id="btnTogglePreview" class="btn-secondary" style="display: none;" onclick="toggleMdPreview()">
+                <i class="fa-solid fa-eye"></i> Preview
+              </button>
+            </div>
+          </div>
+
+          <div id="mdHint" class="md-hint">
+            Markdown enabled — supports <code># headings</code>, <code>**bold**</code>, <code>*italic*</code>, <code>`code`</code>, <code>&gt; quotes</code>, lists, tables, and <code>[links](url)</code>.
+          </div>
+
+          <label for="postText" style="margin-top: 4px;">Post Text</label>
+          <textarea id="postText" class="form-control" rows="5" placeholder="Write your thoughts, physics derivations, math notes, or music logs..." oninput="updateLivePreview()"></textarea>
+          <div id="mdPreviewBox" class="md-preview-box"></div>
         </div>
 
         <div class="form-group">
@@ -414,16 +507,67 @@
     
     let db = null;
     let isUploadingImage = false;
+    let isPreviewOpen = false;
+    const adminPostsMap = {};
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
+    /* ================= MARKDOWN FORMAT & PREVIEW ================= */
+    function handleFormatChange() {
+      const isMd = document.getElementById('postFormat').value === 'markdown';
+      document.getElementById('mdHint').style.display = isMd ? 'block' : 'none';
+      document.getElementById('btnTogglePreview').style.display = isMd ? 'inline-block' : 'none';
+
+      if (!isMd && isPreviewOpen) {
+        toggleMdPreview();
+      }
+    }
+
+    function toggleMdPreview() {
+      isPreviewOpen = !isPreviewOpen;
+      const textarea = document.getElementById('postText');
+      const previewBox = document.getElementById('mdPreviewBox');
+      const btn = document.getElementById('btnTogglePreview');
+
+      if (isPreviewOpen) {
+        updateLivePreview();
+        textarea.style.display = 'none';
+        previewBox.style.display = 'block';
+        btn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Text';
+      } else {
+        textarea.style.display = 'block';
+        previewBox.style.display = 'none';
+        btn.innerHTML = '<i class="fa-solid fa-eye"></i> Preview';
+      }
+    }
+
+    function updateLivePreview() {
+      if (!isPreviewOpen) return;
+      const raw = document.getElementById('postText').value;
+      const previewBox = document.getElementById('mdPreviewBox');
+      if (window.marked && window.DOMPurify) {
+        marked.setOptions({ gfm: true, breaks: true });
+        previewBox.innerHTML = DOMPurify.sanitize(marked.parse(raw || '*Nothing to preview yet...*'));
+      } else {
+        previewBox.textContent = raw;
+      }
+    }
+
+    function parsePostContent(post) {
+      const raw = post.content || '';
+      const hasMdPrefix = raw.startsWith('<!--md-->');
+      const isMarkdown = Boolean(post.is_markdown) || hasMdPrefix;
+      const cleanText = hasMdPrefix ? raw.replace(/^<!--md-->\r?\n?/, '') : raw;
+      return { isMarkdown, cleanText };
     }
 
     /* ================= DATABASE-BACKED PASSWORD LOGIC ================= */
     async function getDatabasePassword() {
       if (!db) return '1234';
       try {
-        const { data, error } = await db
+        const { data } = await db
           .from('site_settings')
           .select('value')
           .eq('key', 'console_pass')
@@ -435,7 +579,7 @@
       } catch (err) {
         console.warn('Could not read password from database:', err);
       }
-      return '1234'; // Default password
+      return '1234';
     }
 
     async function handleUnlock(e) {
@@ -479,7 +623,6 @@
         return alert('New passcode cannot be empty.');
       }
 
-      // Save directly into the Supabase site_settings table
       const { error } = await db.from('site_settings').upsert([
         { key: 'console_pass', value: newPass }
       ]);
@@ -528,7 +671,7 @@
         const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
         const filePath = `${cleanName}`;
 
-        const { data, error } = await db.storage
+        const { error } = await db.storage
           .from('post-images')
           .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
@@ -600,21 +743,25 @@
 
       container.innerHTML = '';
       data.forEach(p => {
+        adminPostsMap[p.id] = p;
+        const { isMarkdown, cleanText } = parsePostContent(p);
+
         const item = document.createElement('div');
         item.className = 'admin-list-item';
         item.innerHTML = `
           <div style="flex: 1;">
             <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 4px;">
-              ${escapeHTML(p.content.substring(0, 100))}${p.content.length > 100 ? '...' : ''}
+              ${escapeHTML(cleanText.substring(0, 100))}${cleanText.length > 100 ? '...' : ''}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
               Date: ${new Date(p.created_at).toLocaleString()} | Votes: ${p.votes} | 
+              ${isMarkdown ? '📝 Markdown' : 'Plain Text'} | 
               ${p.image_url ? '📷 Image' : 'No image'} | 
               ${p.video_url ? '🎬 Video' : 'No video'}
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn-action" style="padding: 6px 14px; font-size: 0.8rem;" onclick="startEdit('${p.id}', \`${escapeJS(p.content)}\`, '${p.image_url || ''}', '${p.video_url || ''}')">
+            <button class="btn-action" style="padding: 6px 14px; font-size: 0.8rem;" onclick="startEdit('${p.id}')">
               <i class="fa-solid fa-pen"></i> Edit
             </button>
             <button class="btn-action btn-danger" style="padding: 6px 14px; font-size: 0.8rem;" onclick="deletePost('${p.id}')">
@@ -630,33 +777,51 @@
       if (!db) return alert('Database connection not established.');
       if (isUploadingImage) return alert('Please wait for the image upload to finish.');
 
-      const content = document.getElementById('postText').value.trim();
+      const rawText = document.getElementById('postText').value.trim().replace(/^<!--md-->\r?\n?/, '');
+      const useMarkdown = document.getElementById('postFormat').value === 'markdown';
       const imageUrl = document.getElementById('postImgUrl').value.trim();
       const hasVid = document.getElementById('videoToggle').checked;
       const videoUrl = hasVid ? document.getElementById('postVid').value.trim() : null;
       const editId = document.getElementById('editId').value;
 
-      if (!content) return alert('Post content cannot be empty.');
+      if (!rawText) return alert('Post content cannot be empty.');
 
+      const payload = {
+        content: rawText,
+        image_url: imageUrl || null,
+        video_url: videoUrl || null,
+        is_markdown: useMarkdown
+      };
+
+      let error;
       if (editId) {
-        const { error } = await db.from('posts').update({
-          content: content,
+        ({ error } = await db.from('posts').update(payload).eq('id', editId));
+      } else {
+        ({ error } = await db.from('posts').insert([{ ...payload, votes: 1 }]));
+      }
+
+      // Fallback if the `is_markdown` column doesn't exist in Supabase yet
+      if (error && error.message && error.message.toLowerCase().includes('is_markdown')) {
+        const fallbackPayload = {
+          content: useMarkdown ? `<!--md-->\n${rawText}` : rawText,
           image_url: imageUrl || null,
           video_url: videoUrl || null
-        }).eq('id', editId);
+        };
+        if (editId) {
+          ({ error } = await db.from('posts').update(fallbackPayload).eq('id', editId));
+        } else {
+          ({ error } = await db.from('posts').insert([{ ...fallbackPayload, votes: 1 }]));
+        }
+      }
 
-        if (error) return alert('Update failed: ' + error.message);
+      if (error) {
+        return alert((editId ? 'Update failed: ' : 'Publishing failed: ') + error.message);
+      }
+
+      if (editId) {
         alert('Post updated!');
         resetEdit();
       } else {
-        const { error } = await db.from('posts').insert([{
-          content: content,
-          image_url: imageUrl || null,
-          video_url: videoUrl || null,
-          votes: 1
-        }]);
-
-        if (error) return alert('Publishing failed: ' + error.message);
         alert('Post published!');
         clearForm();
       }
@@ -664,9 +829,19 @@
       loadAdminPosts();
     }
 
-    function startEdit(id, content, img, vid) {
-      document.getElementById('editId').value = id;
-      document.getElementById('postText').value = content;
+    function startEdit(id) {
+      const post = adminPostsMap[id];
+      if (!post) return;
+
+      const { isMarkdown, cleanText } = parsePostContent(post);
+      if (isPreviewOpen) toggleMdPreview();
+
+      document.getElementById('editId').value = post.id;
+      document.getElementById('postText').value = cleanText;
+      document.getElementById('postFormat').value = isMarkdown ? 'markdown' : 'plain';
+      handleFormatChange();
+
+      const img = post.image_url || '';
       document.getElementById('postImgUrl').value = img;
 
       if (img) {
@@ -680,6 +855,7 @@
       
       const toggle = document.getElementById('videoToggle');
       const vidInput = document.getElementById('postVid');
+      const vid = post.video_url || '';
       if (vid) {
         toggle.checked = true;
         vidInput.value = vid;
@@ -705,7 +881,10 @@
     }
 
     function clearForm() {
+      if (isPreviewOpen) toggleMdPreview();
       document.getElementById('postText').value = '';
+      document.getElementById('postFormat').value = 'plain';
+      handleFormatChange();
       document.getElementById('postVid').value = '';
       document.getElementById('videoToggle').checked = false;
       document.getElementById('videoFieldGroup').style.display = 'none';
@@ -726,10 +905,6 @@
       return (str || '').replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
       );
-    }
-
-    function escapeJS(str) {
-      return (str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     }
 
     // Check in-memory session
