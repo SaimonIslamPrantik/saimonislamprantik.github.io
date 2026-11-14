@@ -370,7 +370,7 @@
       }
     }
 
-    /* Profile Info */
+    /* Profile Info & Name Badges */
     .profile-info {
       margin-top: 10px;
       flex: 1;
@@ -385,6 +385,20 @@
       letter-spacing: 0.8px;
       line-height: 1.05;
       text-transform: lowercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* Badges beside name */
+    .name-badge {
+      height: 0.85em;
+      width: auto;
+      object-fit: contain;
+      vertical-align: middle;
+      display: inline-block;
+      flex-shrink: 0;
     }
 
     .handle {
@@ -461,6 +475,9 @@
       font-size: 0.95rem;
       font-weight: 800;
       color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
     .post-time {
@@ -1117,7 +1134,11 @@
           </div>
 
           <div class="profile-info">
-            <h1>prantik</h1>
+            <h1>
+              prantik
+              <img class="name-badge" src="tick.png" alt="verified" />
+              <img class="name-badge" src="e.gif" alt="badge" />
+            </h1>
             <div class="handle">@prantik</div>
             <p class="bio">
               your average tech dude who loves physics, math and music
@@ -1439,7 +1460,11 @@
             <div class="post-header">
               <img class="post-mini-avatar" src="profile.png" alt="prantik" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'" />
               <div>
-                <div class="post-author">prantik</div>
+                <div class="post-author">
+                  prantik
+                  <img class="name-badge" src="tick.png" alt="verified" />
+                  <img class="name-badge" src="e.gif" alt="badge" />
+                </div>
                 <div class="post-time">${new Date(post.created_at).toLocaleDateString()}</div>
               </div>
             </div>
