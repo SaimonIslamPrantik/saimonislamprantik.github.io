@@ -16,10 +16,6 @@
   <!-- Supabase JS Client v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
-  <!-- Markdown Parser & HTML Sanitizer -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-  
   <style>
     :root {
       --lavender: #e3d7ff;
@@ -74,6 +70,7 @@
       border-radius: 0 !important;
     }
 
+    /* Bubble exemptions so it stays rounded */
     .music-bubble,
     .music-bubble-tail,
     .music-bubble-dot,
@@ -122,6 +119,7 @@
       transition: background 0.3s ease;
     }
 
+    /* Top-Right Theme Toggle Button */
     .theme-toggle-btn {
       position: fixed;
       top: 18px;
@@ -195,6 +193,7 @@
       box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.25);
     }
 
+    /* Cover: cover.png */
     .banner {
       height: 155px;
       width: 100%;
@@ -212,6 +211,7 @@
       position: relative;
     }
 
+    /* Avatar: profile.png */
     .avatar-wrapper {
       position: relative;
       margin-top: -55px;
@@ -234,6 +234,7 @@
       transform: scale(1.05);
     }
 
+    /* ================= LIVE LAST.FM STATUS BUBBLE ================= */
     .music-bubble-container {
       position: absolute;
       top: -62px;
@@ -342,6 +343,7 @@
       margin-top: 2px;
     }
 
+    /* Mobile Responsive Rule for the Bubble */
     @media (max-width: 600px) {
       .music-bubble-container {
         top: -56px;
@@ -362,6 +364,7 @@
       }
     }
 
+    /* Profile Info */
     .profile-info {
       margin-top: 10px;
       flex: 1;
@@ -460,106 +463,12 @@
       font-weight: 600;
     }
 
-    /* ================= POST CONTENT & MARKDOWN STYLING ================= */
     .post-content {
       font-size: 0.98rem;
       line-height: 1.65;
       color: var(--text-main);
       margin-bottom: 14px;
-    }
-
-    .post-content.plain-text {
       white-space: pre-wrap;
-    }
-
-    .post-content.markdown-body {
-      white-space: normal;
-    }
-
-    .post-content.markdown-body h1,
-    .post-content.markdown-body h2,
-    .post-content.markdown-body h3,
-    .post-content.markdown-body h4 {
-      margin: 14px 0 6px 0;
-      font-weight: 800;
-      color: var(--text-main);
-      line-height: 1.3;
-    }
-
-    .post-content.markdown-body p {
-      margin-bottom: 10px;
-    }
-
-    .post-content.markdown-body p:last-child {
-      margin-bottom: 0;
-    }
-
-    .post-content.markdown-body ul,
-    .post-content.markdown-body ol {
-      margin: 8px 0 10px 22px;
-    }
-
-    .post-content.markdown-body li {
-      margin-bottom: 4px;
-    }
-
-    .post-content.markdown-body blockquote {
-      border-left: 4px solid var(--soft-cyan);
-      background: var(--vote-bg);
-      padding: 8px 14px;
-      margin: 12px 0;
-      font-style: italic;
-      color: var(--text-main);
-    }
-
-    .post-content.markdown-body a {
-      color: var(--text-main);
-      text-decoration: underline;
-      font-weight: 700;
-    }
-
-    .post-content.markdown-body a:hover {
-      color: var(--coral);
-    }
-
-    /* Markdown Code Blocks & Inline Code */
-    .post-content.markdown-body pre {
-      background: #150e20;
-      color: #ede5fd;
-      border: 2px solid var(--border-crisp);
-      padding: 12px 14px;
-      margin: 12px 0;
-      overflow-x: auto;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 0.88rem;
-    }
-
-    .post-content.markdown-body code {
-      font-family: 'Courier New', Courier, monospace;
-      background: var(--lavender);
-      color: #2b1742;
-      padding: 2px 6px;
-      font-size: 0.88em;
-      border: 1px solid var(--border-crisp);
-    }
-
-    body.dark-mode .post-content.markdown-body code {
-      background: #2b1a3f;
-      color: var(--lavender);
-    }
-
-    .post-content.markdown-body pre code {
-      background: transparent;
-      color: inherit;
-      padding: 0;
-      border: none;
-    }
-
-    .post-content.markdown-body hr {
-      border: none;
-      border-top: 2px dashed var(--border-crisp);
-      margin: 16px 0;
-      opacity: 0.5;
     }
 
     /* Media Frame */
@@ -851,7 +760,7 @@
 
   <div class="container">
     
-    <!-- Profile Card -->
+    <!-- Profile Card (Cover: cover.png, Profile: profile.png) -->
     <div class="pop-shell">
       <section class="slide-card">
         <div class="banner"></div>
@@ -917,23 +826,23 @@
   </div>
 
   <script>
-    /* ================= CREDENTIALS (INJECTED BY GITHUB ACTIONS) ================= */
-    const CONFIG_SUPABASE_URL = "__SUPABASE_URL__";
-    const CONFIG_SUPABASE_KEY = "__SUPABASE_KEY__";
-    const CONFIG_LASTFM_USER  = "__LASTFM_USER__";
-    const CONFIG_LASTFM_KEY   = "__LASTFM_KEY__";
+    /* ===================================================
+       CREDENTIAL CONFIGURATION
+       Fill these in so phones, tablets, and all visitors can 
+       connect to your feed and see your Last.fm bubble!
+    =================================================== */
+    const CONFIG_SUPABASE_URL = "";  // Paste your Supabase URL here e.g. "https://xxxx.supabase.co"
+    const CONFIG_SUPABASE_KEY = "";  // Paste your Supabase Anon Key here
+    const CONFIG_LASTFM_USER  = "";  // Paste your Last.fm username here
+    const CONFIG_LASTFM_KEY   = "";  // Paste your Last.fm API Key here
 
-    const SUPABASE_URL = CONFIG_SUPABASE_URL.startsWith('__') ? '' : CONFIG_SUPABASE_URL;
-    const SUPABASE_KEY = CONFIG_SUPABASE_KEY.startsWith('__') ? '' : CONFIG_SUPABASE_KEY;
+    // Reads from CONFIG first, then falls back to localStorage
+    const SUPABASE_URL = CONFIG_SUPABASE_URL || localStorage.getItem('SP_URL') || '';
+    const SUPABASE_KEY = CONFIG_SUPABASE_KEY || localStorage.getItem('SP_KEY') || '';
     let supabaseClient = null;
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
-
-    // Configure marked for line breaks
-    if (typeof marked !== 'undefined') {
-      marked.setOptions({ breaks: true, gfm: true });
     }
 
     /* ================= THEME TOGGLE ================= */
@@ -961,9 +870,10 @@
 
     /* ================= LAST.FM STATUS ================= */
     async function initLastFm() {
-      let username = CONFIG_LASTFM_USER.startsWith('__') ? '' : CONFIG_LASTFM_USER;
-      let apiKey   = CONFIG_LASTFM_KEY.startsWith('__')  ? '' : CONFIG_LASTFM_KEY;
+      let username = CONFIG_LASTFM_USER || localStorage.getItem('LASTFM_USER') || '';
+      let apiKey   = CONFIG_LASTFM_KEY  || localStorage.getItem('LASTFM_KEY')  || '';
 
+      // If not filled in code, pull from Supabase site_settings table
       if ((!username || !apiKey) && supabaseClient) {
         try {
           const { data } = await supabaseClient.from('site_settings').select('*');
@@ -1016,7 +926,7 @@
       setInterval(fetchNowPlaying, 20000);
     }
 
-    /* ================= FEED LOADER (MARKDOWN READY) ================= */
+    /* ================= FEED LOADER ================= */
     async function loadPosts() {
       const feedList = document.getElementById('feedList');
       if (!supabaseClient) {
@@ -1096,16 +1006,6 @@
           `;
         }
 
-        // Render Markdown safely if is_markdown is true
-        let parsedContent = '';
-        const isMarkdown = !!post.is_markdown;
-
-        if (isMarkdown && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-          parsedContent = DOMPurify.sanitize(marked.parse(post.content || ''));
-        } else {
-          parsedContent = escapeHTML(post.content || '');
-        }
-
         shell.innerHTML = `
           <article class="slide-card post-card-inner" data-id="${post.id}" data-votes="${post.votes}">
             <div class="post-header">
@@ -1115,7 +1015,7 @@
                 <div class="post-time">${new Date(post.created_at).toLocaleDateString()}</div>
               </div>
             </div>
-            <div class="post-content ${isMarkdown ? 'markdown-body' : 'plain-text'}">${parsedContent}</div>
+            <div class="post-content">${escapeHTML(post.content)}</div>
             ${mediaHtml}
             <div class="post-footer">
               <div class="vote-pill">
@@ -1124,7 +1024,7 @@
                 <button class="vote-btn down" onclick="handleDbVote('${post.id}', -1, this)">▼</button>
               </div>
               <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
-                ${isMarkdown ? '<span style="border:1px solid var(--border-crisp); padding:2px 6px; font-size:0.75rem; background:var(--lavender); color:#2b1742;">MD</span> ' : ''}✦ verified post
+                ✦ verified post
               </div>
             </div>
           </article>
@@ -1180,7 +1080,7 @@
       await supabaseClient.from('posts').update({ votes: newTotal }).eq('id', postId);
     }
 
-    /* ================= VIDEO PLAYER ================= */
+    /* ================= CUSTOM VIDEO PLAYER ================= */
     function setupVideoPlayer(wrapper) {
       const video = wrapper.querySelector('video');
       const playBtn = wrapper.querySelector('.btn-play-toggle');
