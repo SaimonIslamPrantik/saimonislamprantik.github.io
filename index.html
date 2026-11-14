@@ -776,13 +776,8 @@
       border-color: var(--border-crisp);
     }
 
-    .carousel-nav.prev {
-      left: 8px;
-    }
-
-    .carousel-nav.next {
-      right: 8px;
-    }
+    .carousel-nav.prev { left: 8px; }
+    .carousel-nav.next { right: 8px; }
 
     .carousel-dots {
       display: flex;
@@ -1167,13 +1162,20 @@
   <script>
     /* ===================================================
        CREDENTIAL CONFIGURATION
-       Fill these in so phones, tablets, and all visitors can 
-       connect to your feed and see your Last.fm bubble!
+       - Automatically receives values if GitHub Actions injects
+         __SUPABASE_URL__ and __SUPABASE_KEY__ into index.html.
+       - Or replace "__SUPABASE_URL__" / "__SUPABASE_KEY__" below
+         directly with your Supabase Project URL & Anon Key.
     =================================================== */
-    const CONFIG_SUPABASE_URL = "";  // Paste your Supabase URL here e.g. "https://xxxx.supabase.co"
-    const CONFIG_SUPABASE_KEY = "";  // Paste your Supabase Anon Key here
-    const CONFIG_LASTFM_USER  = "";  // Paste your Last.fm username here
-    const CONFIG_LASTFM_KEY   = "";  // Paste your Last.fm API Key here
+    const RAW_SUPABASE_URL = "__SUPABASE_URL__";
+    const RAW_SUPABASE_KEY = "__SUPABASE_KEY__";
+    const RAW_LASTFM_USER  = "__LASTFM_USER__";
+    const RAW_LASTFM_KEY   = "__LASTFM_KEY__";
+
+    const CONFIG_SUPABASE_URL = RAW_SUPABASE_URL.startsWith('__') ? "" : RAW_SUPABASE_URL;
+    const CONFIG_SUPABASE_KEY = RAW_SUPABASE_KEY.startsWith('__') ? "" : RAW_SUPABASE_KEY;
+    const CONFIG_LASTFM_USER  = RAW_LASTFM_USER.startsWith('__')  ? "" : RAW_LASTFM_USER;
+    const CONFIG_LASTFM_KEY   = RAW_LASTFM_KEY.startsWith('__')   ? "" : RAW_LASTFM_KEY;
 
     // Reads from CONFIG first, then falls back to localStorage
     const SUPABASE_URL = CONFIG_SUPABASE_URL || localStorage.getItem('SP_URL') || '';
@@ -1329,6 +1331,10 @@
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase posts load error:', error);
+      }
 
       if (error || !data || data.length === 0) {
         feedList.innerHTML = `
