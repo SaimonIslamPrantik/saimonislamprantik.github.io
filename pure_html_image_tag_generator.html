@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pure HTML Image Tag Generator</title>
+</head>
+<body>
+
+    <header>
+        <h1>HTML Image Tag Generator</h1>
+        <p>Generate a clean HTML <code>&lt;img&gt;</code> tag with custom dimensions. Zero CSS used—100% pure semantic HTML and JavaScript.</p>
+    </header>
+
+    <hr>
+
+    <main>
+        <!-- Input Form Section -->
+        <section>
+            <fieldset>
+                <legend><strong>1. Enter Image Details</strong></legend>
+                <form id="generatorForm">
+                    <p>
+                        <label for="imgUrl"><strong>Image URL:</strong></label><br>
+                        <input type="url" id="imgUrl" size="60" placeholder="https://example.com/image.png" value="https://i.postimg.cc/qqfN76mN/506-5069601-laugh-cry-deepfry-laughingemoji-b-deepfriedmemes-crying-laughing-(1).png" required>
+                    </p>
+
+                    <p>
+                        <label for="imgAlt"><strong>Alt Text (optional):</strong></label><br>
+                        <input type="text" id="imgAlt" size="60" placeholder="Image description (defaults to 'Image')" value="Deep fried laughing emoji meme">
+                    </p>
+
+                    <p>
+                        <label for="imgWidth"><strong>Width (px):</strong></label><br>
+                        <input type="number" id="imgWidth" min="1" max="5000" value="48" required>
+                    </p>
+
+                    <p>
+                        <label for="imgHeight"><strong>Height (px):</strong></label><br>
+                        <input type="number" id="imgHeight" min="1" max="5000" value="48" required>
+                    </p>
+
+                    <p>
+                        <button type="submit">Generate Tag</button>
+                        <button type="button" id="resetBtn">Clear Fields</button>
+                    </p>
+                </form>
+            </fieldset>
+        </section>
+
+        <br>
+
+        <!-- Generated Code Output Section -->
+        <section>
+            <fieldset>
+                <legend><strong>2. Generated HTML Code</strong></legend>
+                <p>
+                    <label for="outputCode">Copy and paste this snippet into your Markdown or HTML file:</label><br>
+                    <textarea id="outputCode" rows="4" cols="75" readonly></textarea>
+                </p>
+                <p>
+                    <button type="button" id="copyBtn">Copy to Clipboard</button>
+                    <span id="statusMsg" role="status" aria-live="polite"></span>
+                </p>
+            </fieldset>
+        </section>
+
+        <br>
+
+        <!-- Live Preview Section -->
+        <section>
+            <fieldset>
+                <legend><strong>3. Live Preview</strong></legend>
+                <p id="previewDimensions">Actual rendered size:</p>
+                <div id="previewContainer">
+                    <!-- Dynamic image preview renders here -->
+                </div>
+            </fieldset>
+        </section>
+    </main>
+
+    <br>
+    <hr>
+
+    <footer>
+        <small>Built with semantic HTML5 elements (<code>&lt;fieldset&gt;</code>, <code>&lt;legend&gt;</code>, <code>&lt;textarea&gt;</code>, <code>&lt;code&gt;</code>) and vanilla JavaScript.</small>
+    </footer>
+
+    <script>
+        /**
+         * Pure HTML Image Tag Generator Logic
+         * Updates the generated HTML string and live image preview dynamically.
+         */
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('generatorForm');
+            const urlInput = document.getElementById('imgUrl');
+            const altInput = document.getElementById('imgAlt');
+            const widthInput = document.getElementById('imgWidth');
+            const heightInput = document.getElementById('imgHeight');
+            const outputCode = document.getElementById('outputCode');
+            const copyBtn = document.getElementById('copyBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const statusMsg = document.getElementById('statusMsg');
+            const previewContainer = document.getElementById('previewContainer');
+            const previewDimensions = document.getElementById('previewDimensions');
+
+            /**
+             * Escapes special HTML characters in user input to prevent broken attributes.
+             * @param {string} str - Raw user input string.
+             * @returns {string} Escaped HTML-safe string.
+             */
+            function escapeHtmlAttr(str) {
+                return str
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            /**
+             * Generates the <img> tag string and updates the live preview.
+             */
+            function updateGenerator() {
+                try {
+                    const rawUrl = urlInput.value.trim();
+                    const rawAlt = altInput.value.trim();
+                    const width = parseInt(widthInput.value, 10);
+                    const height = parseInt(heightInput.value, 10);
+
+                    // Clear previous preview
+                    previewContainer.innerHTML = '';
+
+                    if (!rawUrl) {
+                        outputCode.value = '';
+                        previewDimensions.textContent = 'Enter an image URL above to see a preview.';
+                        return;
+                    }
+
+                    const safeUrl = escapeHtmlAttr(rawUrl);
+                    const safeAlt = escapeHtmlAttr(rawAlt || 'Image');
+
+                    // Build attributes array cleanly
+                    const attributes = [
+                        `src="${safeUrl}"`,
+                        `alt="${safeAlt}"`
+                    ];
+
+                    if (!isNaN(width) && width > 0) {
+                        attributes.push(`width="${width}"`);
+                    }
+
+                    if (!isNaN(height) && height > 0) {
+                        attributes.push(`height="${height}"`);
+                    }
+
+                    const generatedTag = `<img ${attributes.join(' ')} />`;
+                    outputCode.value = generatedTag;
+
+                    // Render live preview using native DOM elements (no CSS)
+                    const previewImg = document.createElement('img');
+                    previewImg.src = rawUrl;
+                    previewImg.alt = rawAlt || 'Image';
+
+                    if (!isNaN(width) && width > 0) {
+                        previewImg.width = width;
+                    }
+                    if (!isNaN(height) && height > 0) {
+                        previewImg.height = height;
+                    }
+
+                    previewImg.onerror = function () {
+                        previewContainer.innerHTML = '<p><em>Unable to load image preview. Please check that the URL is a valid, direct link to an image.</em></p>';
+                    };
+
+                    previewContainer.appendChild(previewImg);
+
+                    const dimLabel = (!isNaN(width) && width > 0 && !isNaN(height) && height > 0)
+                        ? `Rendered at ${width} × ${height} pixels:`
+                        : 'Rendered image preview:';
+                    previewDimensions.textContent = dimLabel;
+
+                } catch (err) {
+                    statusMsg.textContent = 'Error generating tag: ' + err.message;
+                }
+            }
+
+            /**
+             * Copies the generated HTML string to the clipboard using document.execCommand('copy').
+             */
+            function copyToClipboard() {
+                if (!outputCode.value) {
+                    statusMsg.textContent = ' Nothing to copy!';
+                    return;
+                }
+
+                try {
+                    outputCode.focus();
+                    outputCode.select();
+                    outputCode.setSelectionRange(0, 99999); // For mobile compatibility
+
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        statusMsg.textContent = ' Copied to clipboard!';
+                    } else {
+                        statusMsg.textContent = ' Copy failed. Please select and copy manually.';
+                    }
+                } catch (err) {
+                    statusMsg.textContent = ' Copy error: ' + err.message;
+                }
+
+                // Clear status message after 3 seconds
+                setTimeout(function () {
+                    statusMsg.textContent = '';
+                }, 3000);
+            }
+
+            // Real-time updates on input
+            urlInput.addEventListener('input', updateGenerator);
+            altInput.addEventListener('input', updateGenerator);
+            widthInput.addEventListener('input', updateGenerator);
+            heightInput.addEventListener('input', updateGenerator);
+
+            // Handle form submission without page reload
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                updateGenerator();
+            });
+
+            // Copy button handler
+            copyBtn.addEventListener('click', copyToClipboard);
+
+            // Reset button handler
+            resetBtn.addEventListener('click', function () {
+                urlInput.value = '';
+                altInput.value = '';
+                widthInput.value = '48';
+                heightInput.value = '48';
+                statusMsg.textContent = '';
+                updateGenerator();
+            });
+
+            // Initialize on load with default values
+            updateGenerator();
+        });
+    </script>
+</body>
+</html>
