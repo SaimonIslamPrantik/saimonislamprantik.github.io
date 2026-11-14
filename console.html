@@ -213,35 +213,101 @@
       color: var(--text-muted);
     }
 
-    .preview-wrapper {
+    /* Multi-image Slide Preview Strip */
+    .multi-preview-grid {
       display: none;
-      align-items: flex-start;
-      gap: 14px;
-      margin-top: 10px;
-      padding: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
       background: #faf8fd;
       border: 2px solid var(--border-crisp);
     }
 
-    .preview-thumb {
-      max-width: 160px;
-      max-height: 120px;
-      object-fit: contain;
-      border: 1px solid var(--border-crisp);
-      background: #fff;
-    }
-
-    .preview-info {
-      flex: 1;
+    .multi-preview-item {
+      position: relative;
+      background: #ffffff;
+      border: 2px solid var(--border-crisp);
+      padding: 6px;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
-    .preview-status {
-      font-size: 0.82rem;
+    .multi-preview-thumb-box {
+      position: relative;
+      width: 100%;
+      height: 110px;
+      background: #140d21;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .multi-preview-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .slide-index-badge {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: var(--deep-purple);
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border: 1px solid #ffffff;
+    }
+
+    .multi-preview-status {
+      font-size: 0.73rem;
       font-weight: 700;
       color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .multi-preview-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .btn-mini {
+      background: var(--lavender);
+      color: var(--deep-purple);
+      border: 1.5px solid var(--border-crisp);
+      padding: 3px 7px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-mini:hover:not(:disabled) {
+      background: var(--soft-cyan);
+    }
+
+    .btn-mini:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-mini.danger {
+      background: var(--coral);
+      color: #ffffff;
+    }
+
+    .manual-url-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .checkbox-row {
@@ -412,7 +478,6 @@
       <div class="slide-card">
         <h2 id="formHeading" style="font-size: 1.25rem; margin-bottom: 14px;">✍️ Post New Content</h2>
         <input type="hidden" id="editId" value="" />
-        <input type="hidden" id="postImgUrl" value="" />
 
         <div class="form-group">
           <div class="format-row">
@@ -438,33 +503,25 @@
         </div>
 
         <div class="form-group">
-          <label>Attach Image (Auto Upload)</label>
+          <label>Attach Images (Single or Multiple Slides)</label>
           
           <div class="file-dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            <div class="file-dropzone-text">Click or drag & drop an image here</div>
-            <div class="file-dropzone-sub">Uploads directly to Supabase Storage (post-images bucket)</div>
+            <i class="fa-solid fa-images"></i>
+            <div class="file-dropzone-text">Click or drag & drop one or multiple images here</div>
+            <div class="file-dropzone-sub">Adding 2+ images automatically creates an Instagram-style slide post</div>
           </div>
-          <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileSelect(this.files)" />
+          <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(this.files)" />
 
-          <div class="preview-wrapper" id="previewWrapper">
-            <img class="preview-thumb" id="previewImg" src="" alt="Thumbnail" />
-            <div class="preview-info">
-              <span id="previewName" style="font-weight: 800; font-size: 0.88rem;"></span>
-              <span class="preview-status" id="previewStatus">Uploading...</span>
-              <button type="button" class="btn-action btn-danger" style="padding: 4px 10px; font-size: 0.75rem; width: fit-content;" onclick="removeImage()">
-                <i class="fa-solid fa-xmark"></i> Remove Image
-              </button>
-            </div>
-          </div>
+          <div class="multi-preview-grid" id="multiPreviewGrid"></div>
         </div>
 
         <div style="margin-bottom: 14px;">
           <a href="javascript:void(0)" onclick="toggleManualUrl()" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-decoration: underline;">
-            Or paste image URL manually
+            Or add image URL manually
           </a>
-          <div id="manualUrlGroup" style="display: none; margin-top: 8px;">
-            <input type="url" id="manualImgInput" class="form-control" placeholder="https://..." oninput="handleManualUrl(this.value)" />
+          <div id="manualUrlGroup" style="display: none;" class="manual-url-row">
+            <input type="url" id="manualImgInput" class="form-control" placeholder="https://example.com/photo.jpg" onkeydown="if(event.key==='Enter'){event.preventDefault();addManualUrl();}" />
+            <button type="button" class="btn-secondary" style="white-space: nowrap;" onclick="addManualUrl()">+ Add Slide</button>
           </div>
         </div>
 
@@ -506,9 +563,9 @@
     const SUPABASE_KEY = CONFIG_SUPABASE_KEY.startsWith('__') ? '' : CONFIG_SUPABASE_KEY;
     
     let db = null;
-    let isUploadingImage = false;
     let isPreviewOpen = false;
     const adminPostsMap = {};
+    let attachedImages = []; // Array of { id, url, previewUrl, name, status }
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -561,6 +618,27 @@
       const isMarkdown = Boolean(post.is_markdown) || hasMdPrefix;
       const cleanText = hasMdPrefix ? raw.replace(/^<!--md-->\r?\n?/, '') : raw;
       return { isMarkdown, cleanText };
+    }
+
+    function parseImageUrls(imageField) {
+      if (!imageField) return [];
+      if (Array.isArray(imageField)) {
+        return imageField.map(u => String(u).trim()).filter(Boolean);
+      }
+      if (typeof imageField === 'string') {
+        const trimmed = imageField.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.map(u => String(u).trim()).filter(Boolean);
+            }
+          } catch (e) {}
+        }
+        return [trimmed];
+      }
+      return [];
     }
 
     /* ================= DATABASE-BACKED PASSWORD LOGIC ================= */
@@ -636,7 +714,7 @@
       alert(`Passcode successfully updated in your database! Use "${newPass}" next time.`);
     }
 
-    /* ================= FILE UPLOAD DROPZONE ================= */
+    /* ================= MULTI-IMAGE DROPZONE & MANAGER ================= */
     const dropzone = document.getElementById('dropzone');
     ['dragenter', 'dragover'].forEach(name => {
       dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -649,68 +727,134 @@
       if (dt.files && dt.files.length > 0) handleFileSelect(dt.files);
     });
 
-    async function handleFileSelect(files) {
-      if (!files || files.length === 0) return;
-      const file = files[0];
-      if (!file.type.startsWith('image/')) return alert('Please select a valid image file.');
-      if (!db) return alert('Database is not connected. Check GitHub Secrets.');
-
-      const previewWrapper = document.getElementById('previewWrapper');
-      const previewImg = document.getElementById('previewImg');
-      const previewName = document.getElementById('previewName');
-      const previewStatus = document.getElementById('previewStatus');
-
-      previewImg.src = URL.createObjectURL(file);
-      previewName.textContent = file.name;
-      previewStatus.innerHTML = '<span style="color: var(--deep-purple);"><i class="fa-solid fa-spinner fa-spin"></i> Uploading to Supabase Storage...</span>';
-      previewWrapper.style.display = 'flex';
-      isUploadingImage = true;
-
-      try {
-        const fileExt = file.name.split('.').pop();
-        const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-        const filePath = `${cleanName}`;
-
-        const { error } = await db.storage
-          .from('post-images')
-          .upload(filePath, file, { cacheControl: '3600', upsert: false });
-
-        if (error) throw error;
-
-        const { data: urlData } = db.storage.from('post-images').getPublicUrl(filePath);
-        document.getElementById('postImgUrl').value = urlData.publicUrl;
-        previewStatus.innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Uploaded!</span>';
-      } catch (err) {
-        previewStatus.innerHTML = `<span style="color: var(--coral);"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${err.message}</span>`;
-        alert(`Upload error: ${err.message}\nMake sure 'post-images' bucket is created in Supabase!`);
-      } finally {
-        isUploadingImage = false;
+    function renderMultiPreviews() {
+      const grid = document.getElementById('multiPreviewGrid');
+      if (attachedImages.length === 0) {
+        grid.style.display = 'none';
+        grid.innerHTML = '';
+        return;
       }
+
+      grid.style.display = 'grid';
+      grid.innerHTML = '';
+
+      attachedImages.forEach((imgObj, idx) => {
+        const card = document.createElement('div');
+        card.className = 'multi-preview-item';
+
+        let statusHtml = '';
+        if (imgObj.status === 'uploading') {
+          statusHtml = `<span style="color: var(--deep-purple);"><i class="fa-solid fa-spinner fa-spin"></i> Uploading...</span>`;
+        } else if (imgObj.status === 'error') {
+          statusHtml = `<span style="color: var(--coral);"><i class="fa-solid fa-triangle-exclamation"></i> Failed</span>`;
+        } else {
+          statusHtml = `<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Ready</span>`;
+        }
+
+        card.innerHTML = `
+          <div class="multi-preview-thumb-box">
+            <span class="slide-index-badge">${idx + 1}</span>
+            <img class="multi-preview-thumb" src="${escapeHTML(imgObj.previewUrl)}" alt="${escapeHTML(imgObj.name)}" />
+          </div>
+          <div class="multi-preview-status" title="${escapeHTML(imgObj.name)}">${statusHtml} · ${escapeHTML(imgObj.name)}</div>
+          <div class="multi-preview-actions">
+            <div>
+              <button type="button" class="btn-mini" title="Move left" ${idx === 0 ? 'disabled' : ''} onclick="moveImage(${idx}, -1)">◀</button>
+              <button type="button" class="btn-mini" title="Move right" ${idx === attachedImages.length - 1 ? 'disabled' : ''} onclick="moveImage(${idx}, 1)">▶</button>
+            </div>
+            <button type="button" class="btn-mini danger" title="Remove" onclick="removeImageAt(${idx})">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
     }
 
-    function removeImage() {
+    async function handleFileSelect(files) {
+      if (!files || files.length === 0) return;
+      if (!db) return alert('Database is not connected. Check GitHub Secrets.');
+
+      const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+      if (imageFiles.length === 0) return alert('Please select valid image file(s).');
+
+      // Clear file input so the same file can be re-selected later if needed
       document.getElementById('fileInput').value = '';
-      document.getElementById('postImgUrl').value = '';
+
+      const uploadTasks = imageFiles.map(async (file) => {
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          url: '',
+          previewUrl: URL.createObjectURL(file),
+          name: file.name,
+          status: 'uploading'
+        };
+        attachedImages.push(entry);
+        renderMultiPreviews();
+
+        try {
+          const fileExt = file.name.split('.').pop();
+          const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+          const { error } = await db.storage
+            .from('post-images')
+            .upload(cleanName, file, { cacheControl: '3600', upsert: false });
+
+          if (error) throw error;
+
+          const { data: urlData } = db.storage.from('post-images').getPublicUrl(cleanName);
+          entry.url = urlData.publicUrl;
+          entry.status = 'done';
+        } catch (err) {
+          entry.status = 'error';
+          alert(`Upload error (${file.name}): ${err.message}\nMake sure 'post-images' bucket is created in Supabase!`);
+        } finally {
+          renderMultiPreviews();
+        }
+      });
+
+      await Promise.all(uploadTasks);
+    }
+
+    function moveImage(index, direction) {
+      const target = index + direction;
+      if (target < 0 || target >= attachedImages.length) return;
+      const temp = attachedImages[index];
+      attachedImages[index] = attachedImages[target];
+      attachedImages[target] = temp;
+      renderMultiPreviews();
+    }
+
+    function removeImageAt(index) {
+      attachedImages.splice(index, 1);
+      renderMultiPreviews();
+    }
+
+    function clearImages() {
+      document.getElementById('fileInput').value = '';
       document.getElementById('manualImgInput').value = '';
-      document.getElementById('previewWrapper').style.display = 'none';
-      document.getElementById('previewImg').src = '';
+      attachedImages = [];
+      renderMultiPreviews();
     }
 
     function toggleManualUrl() {
       const g = document.getElementById('manualUrlGroup');
-      g.style.display = g.style.display === 'none' ? 'block' : 'none';
+      g.style.display = g.style.display === 'none' ? 'flex' : 'none';
     }
 
-    function handleManualUrl(val) {
-      document.getElementById('postImgUrl').value = val.trim();
-      if (val.trim()) {
-        document.getElementById('previewImg').src = val.trim();
-        document.getElementById('previewName').textContent = 'External Image Link';
-        document.getElementById('previewStatus').innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Linked</span>';
-        document.getElementById('previewWrapper').style.display = 'flex';
-      } else {
-        removeImage();
-      }
+    function addManualUrl() {
+      const input = document.getElementById('manualImgInput');
+      const val = input.value.trim();
+      if (!val) return;
+      attachedImages.push({
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        url: val,
+        previewUrl: val,
+        name: 'External URL',
+        status: 'done'
+      });
+      input.value = '';
+      renderMultiPreviews();
     }
 
     function toggleVideoField() {
@@ -745,6 +889,12 @@
       data.forEach(p => {
         adminPostsMap[p.id] = p;
         const { isMarkdown, cleanText } = parsePostContent(p);
+        const images = parseImageUrls(p.image_url);
+        const imgLabel = images.length === 0
+          ? 'No image'
+          : images.length === 1
+            ? '📷 1 Image'
+            : `🖼️ ${images.length} Images (Slide)`;
 
         const item = document.createElement('div');
         item.className = 'admin-list-item';
@@ -756,7 +906,7 @@
             <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
               Date: ${new Date(p.created_at).toLocaleString()} | Votes: ${p.votes} | 
               ${isMarkdown ? '📝 Markdown' : 'Plain Text'} | 
-              ${p.image_url ? '📷 Image' : 'No image'} | 
+              ${imgLabel} | 
               ${p.video_url ? '🎬 Video' : 'No video'}
             </div>
           </div>
@@ -775,11 +925,19 @@
 
     async function savePost() {
       if (!db) return alert('Database connection not established.');
-      if (isUploadingImage) return alert('Please wait for the image upload to finish.');
+      if (attachedImages.some(img => img.status === 'uploading')) {
+        return alert('Please wait for all image uploads to finish.');
+      }
 
       const rawText = document.getElementById('postText').value.trim().replace(/^<!--md-->\r?\n?/, '');
       const useMarkdown = document.getElementById('postFormat').value === 'markdown';
-      const imageUrl = document.getElementById('postImgUrl').value.trim();
+      const validUrls = attachedImages.filter(img => img.status === 'done' && img.url).map(img => img.url);
+      const imageValue = validUrls.length === 0
+        ? null
+        : validUrls.length === 1
+          ? validUrls[0]
+          : JSON.stringify(validUrls);
+
       const hasVid = document.getElementById('videoToggle').checked;
       const videoUrl = hasVid ? document.getElementById('postVid').value.trim() : null;
       const editId = document.getElementById('editId').value;
@@ -788,7 +946,7 @@
 
       const payload = {
         content: rawText,
-        image_url: imageUrl || null,
+        image_url: imageValue,
         video_url: videoUrl || null,
         is_markdown: useMarkdown
       };
@@ -804,7 +962,7 @@
       if (error && error.message && error.message.toLowerCase().includes('is_markdown')) {
         const fallbackPayload = {
           content: useMarkdown ? `<!--md-->\n${rawText}` : rawText,
-          image_url: imageUrl || null,
+          image_url: imageValue,
           video_url: videoUrl || null
         };
         if (editId) {
@@ -841,17 +999,15 @@
       document.getElementById('postFormat').value = isMarkdown ? 'markdown' : 'plain';
       handleFormatChange();
 
-      const img = post.image_url || '';
-      document.getElementById('postImgUrl').value = img;
-
-      if (img) {
-        document.getElementById('previewImg').src = img;
-        document.getElementById('previewName').textContent = 'Attached Image';
-        document.getElementById('previewStatus').innerHTML = '<span style="color: #274b13;"><i class="fa-solid fa-check"></i> Current Image</span>';
-        document.getElementById('previewWrapper').style.display = 'flex';
-      } else {
-        removeImage();
-      }
+      const existingUrls = parseImageUrls(post.image_url);
+      attachedImages = existingUrls.map((url, idx) => ({
+        id: `existing-${idx}-${Date.now()}`,
+        url: url,
+        previewUrl: url,
+        name: `Slide ${idx + 1}`,
+        status: 'done'
+      }));
+      renderMultiPreviews();
       
       const toggle = document.getElementById('videoToggle');
       const vidInput = document.getElementById('postVid');
@@ -888,7 +1044,7 @@
       document.getElementById('postVid').value = '';
       document.getElementById('videoToggle').checked = false;
       document.getElementById('videoFieldGroup').style.display = 'none';
-      removeImage();
+      clearImages();
     }
 
     async function deletePost(id) {
