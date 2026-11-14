@@ -74,11 +74,12 @@
       border-radius: 0 !important;
     }
 
-    /* Bubble exemptions so it stays rounded */
+    /* Bubble & Carousel Dot exemptions so they stay rounded */
     .music-bubble,
     .music-bubble-tail,
     .music-bubble-dot,
-    .sound-bar {
+    .sound-bar,
+    .carousel-dot {
       border-radius: 9999px !important;
     }
 
@@ -640,7 +641,7 @@
       cursor: pointer;
     }
 
-    /* Media Frame */
+    /* Single Media Frame */
     .post-media-frame {
       display: inline-block;
       position: relative;
@@ -676,6 +677,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      z-index: 4;
       transition: background 0.2s ease, transform 0.2s var(--spring-slide);
     }
 
@@ -683,6 +685,126 @@
       background: var(--soft-cyan);
       color: #181124;
       transform: translate(-2px, -2px);
+    }
+
+    /* ================= INSTAGRAM-LIKE IMAGE CAROUSEL ================= */
+    .post-carousel {
+      max-width: 440px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .carousel-viewport {
+      position: relative;
+      background: var(--vote-bg);
+      border: 2px solid var(--border-crisp);
+      box-shadow: 4px 4px 0 var(--placeholder-bg);
+      overflow: hidden;
+    }
+
+    .carousel-track {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .carousel-track::-webkit-scrollbar {
+      display: none;
+    }
+
+    .carousel-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #140d21;
+      height: clamp(230px, 52vw, 350px);
+    }
+
+    .carousel-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .carousel-counter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(24, 17, 36, 0.88);
+      color: #ffffff;
+      border: 1.5px solid var(--lavender);
+      padding: 3px 9px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .carousel-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      background: rgba(24, 17, 36, 0.85);
+      color: #ffffff;
+      border: 2px solid var(--lavender);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      cursor: pointer;
+      z-index: 4;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+
+    .carousel-nav:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+      border-color: var(--border-crisp);
+    }
+
+    .carousel-nav.prev {
+      left: 8px;
+    }
+
+    .carousel-nav.next {
+      right: 8px;
+    }
+
+    .carousel-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .carousel-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--placeholder-border);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.18s ease, background-color 0.18s ease;
+    }
+
+    .carousel-dot.active {
+      background: var(--text-main);
+      transform: scale(1.3);
     }
 
     /* Video Player */
@@ -917,6 +1039,47 @@
       justify-content: center;
       font-size: 1rem;
       cursor: pointer;
+      z-index: 5;
+    }
+
+    .lightbox-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      background: rgba(24, 17, 36, 0.88);
+      color: #ffffff;
+      border: 2px solid var(--lavender);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    .lightbox-nav-btn:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+    }
+
+    .lightbox-nav-btn.prev { left: 12px; }
+    .lightbox-nav-btn.next { right: 12px; }
+
+    .lightbox-counter {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(24, 17, 36, 0.88);
+      color: #ffffff;
+      border: 1.5px solid var(--lavender);
+      padding: 3px 12px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      display: none;
+      z-index: 5;
     }
   </style>
 </head>
@@ -990,7 +1153,14 @@
       <button class="lightbox-close-btn" onclick="closeLightbox(null)">
         <i class="fa-solid fa-xmark"></i>
       </button>
+      <button class="lightbox-nav-btn prev" id="lightboxPrev" onclick="stepLightbox(-1)">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <button class="lightbox-nav-btn next" id="lightboxNext" onclick="stepLightbox(1)">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
       <img class="lightbox-img" id="lightboxTargetImg" src="" alt="Full view" />
+      <div class="lightbox-counter" id="lightboxCounter"></div>
     </div>
   </div>
 
@@ -1009,6 +1179,7 @@
     const SUPABASE_URL = CONFIG_SUPABASE_URL || localStorage.getItem('SP_URL') || '';
     const SUPABASE_KEY = CONFIG_SUPABASE_KEY || localStorage.getItem('SP_KEY') || '';
     let supabaseClient = null;
+    const postImagesMap = {};
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1095,13 +1266,34 @@
       setInterval(fetchNowPlaying, 20000);
     }
 
-    /* ================= MARKDOWN RENDERING ================= */
+    /* ================= CONTENT & IMAGE PARSING ================= */
     function parsePostContent(post) {
       const raw = post.content || '';
       const hasMdPrefix = raw.startsWith('<!--md-->');
       const isMarkdown = Boolean(post.is_markdown) || hasMdPrefix;
       const cleanText = hasMdPrefix ? raw.replace(/^<!--md-->\r?\n?/, '') : raw;
       return { isMarkdown, cleanText };
+    }
+
+    function parseImageUrls(imageField) {
+      if (!imageField) return [];
+      if (Array.isArray(imageField)) {
+        return imageField.map(u => String(u).trim()).filter(Boolean);
+      }
+      if (typeof imageField === 'string') {
+        const trimmed = imageField.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.map(u => String(u).trim()).filter(Boolean);
+            }
+          } catch (e) {}
+        }
+        return [trimmed];
+      }
+      return [];
     }
 
     function renderMarkdown(mdText) {
@@ -1160,16 +1352,51 @@
         const { isMarkdown, cleanText } = parsePostContent(post);
         const contentHtml = isMarkdown ? renderMarkdown(cleanText) : escapeHTML(cleanText);
         const contentClass = isMarkdown ? 'post-content markdown-body' : 'post-content';
-        
+        const images = parseImageUrls(post.image_url);
+        postImagesMap[post.id] = images;
+
         let mediaHtml = '';
-        if (post.image_url) {
+        if (images.length === 1) {
           mediaHtml += `
             <div>
               <div class="post-media-frame">
-                <button class="btn-fullscreen-trigger" title="Fullscreen" onclick="openLightbox('${escapeHTML(post.image_url)}')">
+                <button class="btn-fullscreen-trigger" title="Fullscreen" data-post-id="${post.id}" data-slide-index="0">
                   <i class="fa-solid fa-expand"></i>
                 </button>
-                <img class="post-media" src="${escapeHTML(post.image_url)}" alt="Post image" onclick="openLightbox(this.src)" />
+                <img class="post-media" src="${escapeHTML(images[0])}" alt="Post image" data-post-id="${post.id}" data-slide-index="0" />
+              </div>
+            </div>
+          `;
+        } else if (images.length > 1) {
+          const slidesHtml = images.map((url, idx) => `
+            <div class="carousel-slide">
+              <img src="${escapeHTML(url)}" alt="Slide ${idx + 1}" loading="lazy" data-post-id="${post.id}" data-slide-index="${idx}" />
+            </div>
+          `).join('');
+
+          const dotsHtml = images.map((_, idx) => `
+            <button type="button" class="carousel-dot ${idx === 0 ? 'active' : ''}" aria-label="Go to slide ${idx + 1}" data-dot-index="${idx}"></button>
+          `).join('');
+
+          mediaHtml += `
+            <div class="post-carousel" data-post-id="${post.id}">
+              <div class="carousel-viewport">
+                <span class="carousel-counter">1 / ${images.length}</span>
+                <button type="button" class="btn-fullscreen-trigger carousel-expand-btn" title="Fullscreen">
+                  <i class="fa-solid fa-expand"></i>
+                </button>
+                <button type="button" class="carousel-nav prev" aria-label="Previous slide" style="display: none;">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" class="carousel-nav next" aria-label="Next slide">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+                <div class="carousel-track">
+                  ${slidesHtml}
+                </div>
+              </div>
+              <div class="carousel-dots">
+                ${dotsHtml}
               </div>
             </div>
           `;
@@ -1224,21 +1451,107 @@
           </article>
         `;
 
-        // Make markdown links open safely in a new tab and markdown images open in lightbox
+        // Single image click & expand handlers
+        shell.querySelectorAll('.post-media, .post-media-frame .btn-fullscreen-trigger').forEach(el => {
+          el.addEventListener('click', () => {
+            const pId = el.getAttribute('data-post-id');
+            openLightbox(postImagesMap[pId], 0);
+          });
+        });
+
+        // Markdown links & inline images
         if (isMarkdown) {
           shell.querySelectorAll('.markdown-body a').forEach(a => {
             a.setAttribute('target', '_blank');
             a.setAttribute('rel', 'noopener noreferrer');
           });
           shell.querySelectorAll('.markdown-body img').forEach(img => {
-            img.addEventListener('click', () => openLightbox(img.src));
+            img.addEventListener('click', () => openLightbox([img.src], 0));
           });
         }
 
         feedList.appendChild(shell);
       });
 
+      document.querySelectorAll('.post-carousel').forEach(setupCarousel);
       document.querySelectorAll('.cozy-player-wrapper').forEach(setupVideoPlayer);
+    }
+
+    /* ================= INSTAGRAM CAROUSEL CONTROLLER ================= */
+    function setupCarousel(carousel) {
+      const track = carousel.querySelector('.carousel-track');
+      const slides = carousel.querySelectorAll('.carousel-slide');
+      const prevBtn = carousel.querySelector('.carousel-nav.prev');
+      const nextBtn = carousel.querySelector('.carousel-nav.next');
+      const counter = carousel.querySelector('.carousel-counter');
+      const dots = carousel.querySelectorAll('.carousel-dot');
+      const expandBtn = carousel.querySelector('.carousel-expand-btn');
+      const postId = carousel.getAttribute('data-post-id');
+      const total = slides.length;
+      let currentIdx = 0;
+      let scrollRaf = null;
+
+      function updateUI(idx) {
+        currentIdx = Math.max(0, Math.min(total - 1, idx));
+        counter.textContent = `${currentIdx + 1} / ${total}`;
+        prevBtn.style.display = currentIdx === 0 ? 'none' : 'flex';
+        nextBtn.style.display = currentIdx === total - 1 ? 'none' : 'flex';
+        dots.forEach((dot, i) => dot.classList.toggle('active', i === currentIdx));
+      }
+
+      function goToSlide(idx) {
+        const target = Math.max(0, Math.min(total - 1, idx));
+        track.scrollTo({
+          left: target * track.clientWidth,
+          behavior: 'smooth'
+        });
+        updateUI(target);
+      }
+
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        goToSlide(currentIdx - 1);
+      });
+
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        goToSlide(currentIdx + 1);
+      });
+
+      dots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(dot.getAttribute('data-dot-index'), 10);
+          goToSlide(idx);
+        });
+      });
+
+      track.addEventListener('scroll', () => {
+        if (scrollRaf) return;
+        scrollRaf = requestAnimationFrame(() => {
+          scrollRaf = null;
+          if (track.clientWidth > 0) {
+            const idx = Math.round(track.scrollLeft / track.clientWidth);
+            if (idx !== currentIdx) updateUI(idx);
+          }
+        });
+      }, { passive: true });
+
+      slides.forEach((slide, idx) => {
+        const img = slide.querySelector('img');
+        if (img) {
+          img.addEventListener('click', () => {
+            openLightbox(postImagesMap[postId] || [img.src], idx);
+          });
+        }
+      });
+
+      if (expandBtn) {
+        expandBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openLightbox(postImagesMap[postId] || [], currentIdx);
+        });
+      }
     }
 
     /* ================= VOTING ================= */
@@ -1394,11 +1707,45 @@
       });
     }
 
-    function openLightbox(src) {
-      const modal = document.getElementById('lightboxModal');
-      document.getElementById('lightboxTargetImg').src = src;
-      modal.classList.add('active');
+    /* ================= LIGHTBOX (SINGLE & SLIDE) ================= */
+    let lightboxImages = [];
+    let lightboxIndex = 0;
+
+    function openLightbox(srcOrList, startIndex = 0) {
+      lightboxImages = Array.isArray(srcOrList) ? srcOrList : [srcOrList];
+      if (!lightboxImages.length) return;
+      lightboxIndex = Math.max(0, Math.min(lightboxImages.length - 1, startIndex));
+      renderLightboxSlide();
+      document.getElementById('lightboxModal').classList.add('active');
       document.body.style.overflow = 'hidden';
+    }
+
+    function renderLightboxSlide() {
+      const img = document.getElementById('lightboxTargetImg');
+      const prevBtn = document.getElementById('lightboxPrev');
+      const nextBtn = document.getElementById('lightboxNext');
+      const counter = document.getElementById('lightboxCounter');
+
+      img.src = lightboxImages[lightboxIndex];
+
+      if (lightboxImages.length > 1) {
+        counter.textContent = `${lightboxIndex + 1} / ${lightboxImages.length}`;
+        counter.style.display = 'block';
+        prevBtn.style.display = lightboxIndex > 0 ? 'flex' : 'none';
+        nextBtn.style.display = lightboxIndex < lightboxImages.length - 1 ? 'flex' : 'none';
+      } else {
+        counter.style.display = 'none';
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+      }
+    }
+
+    function stepLightbox(delta) {
+      const next = lightboxIndex + delta;
+      if (next >= 0 && next < lightboxImages.length) {
+        lightboxIndex = next;
+        renderLightboxSlide();
+      }
     }
 
     function closeLightbox(event) {
@@ -1409,7 +1756,11 @@
     }
 
     document.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('lightboxModal');
+      if (!modal.classList.contains('active')) return;
       if (e.key === 'Escape') closeLightbox(null);
+      if (e.key === 'ArrowLeft') stepLightbox(-1);
+      if (e.key === 'ArrowRight') stepLightbox(1);
     });
 
     function escapeHTML(str) {
