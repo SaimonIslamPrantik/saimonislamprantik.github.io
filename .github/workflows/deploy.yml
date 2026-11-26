@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -20,11 +21,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject Secrets into index.html and console.html
+      - name: Inject secrets
         env:
           SP_URL: ${{ secrets.SUPABASE_URL }}
           SP_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -43,11 +45,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
-          retention-days: 1
+          path: .
 
       - name: Deploy to GitHub Pages
         id: deployment
