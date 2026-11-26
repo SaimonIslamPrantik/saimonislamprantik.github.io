@@ -20,6 +20,9 @@
   <!-- Markdown Parser (Marked) & HTML Sanitizer (DOMPurify) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+
+  <!-- HLS.js for .m3u8 Live & VOD Streams -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
   
   <style>
     /* Local font replacing Darumadrop One */
@@ -34,6 +37,7 @@
       --lavender: #e3d7ff;
       --green: #95e06c;
       --coral: #ff5a5f;
+      --live-red: #ff2a3c;
       --deep-purple: #4c2c72;
       --soft-cyan: #7ee8fa;
 
@@ -88,7 +92,8 @@
     .music-bubble-tail,
     .music-bubble-dot,
     .sound-bar,
-    .carousel-dot {
+    .carousel-dot,
+    .hls-dot {
       border-radius: 9999px !important;
     }
 
@@ -276,11 +281,66 @@
       object-fit: cover;
       display: block;
       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-      transition: transform 0.2s ease, border-color 0.25s ease;
+      transition: transform 0.2s ease, border-color 0.25s ease, outline-color 0.25s ease, box-shadow 0.25s ease;
     }
 
     .avatar:hover {
       transform: scale(1.05);
+    }
+
+    /* Red Live Border on Profile Picture when Live or HLS Post Exists */
+    .avatar-wrapper.is-live .avatar {
+      border: 4px solid var(--live-red);
+      outline: 3px solid var(--live-red);
+      box-shadow: 0 0 0 3px rgba(255, 42, 60, 0.35), 0 6px 22px rgba(255, 42, 60, 0.6);
+      animation: liveAvatarPulse 2s ease-in-out infinite;
+    }
+
+    .avatar-live-badge {
+      display: none;
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--live-red);
+      color: #ffffff;
+      border: 2px solid var(--border-crisp);
+      padding: 2px 8px;
+      font-size: 0.66rem;
+      font-weight: 900;
+      letter-spacing: 0.9px;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      z-index: 6;
+      box-shadow: 2px 2px 0 var(--border-crisp);
+    }
+
+    .avatar-wrapper.is-live .avatar-live-badge {
+      display: inline-flex;
+    }
+
+    @keyframes liveAvatarPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 2px rgba(255, 42, 60, 0.35), 0 6px 18px rgba(255, 42, 60, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(255, 42, 60, 0.5), 0 6px 26px rgba(255, 42, 60, 0.8);
+      }
+    }
+
+    @keyframes liveDotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .hls-dot {
+      width: 7px;
+      height: 7px;
+      background: #ffffff;
+      display: inline-block;
+      flex-shrink: 0;
+      animation: liveDotPulse 1.2s ease-in-out infinite;
     }
 
     /* ================= LIVE LAST.FM STATUS BUBBLE ================= */
@@ -864,7 +924,7 @@
       transform: scale(1.3);
     }
 
-    /* Video Player */
+    /* Video Player & HLS Live Player */
     .cozy-player-wrapper {
       display: inline-block;
       position: relative;
@@ -876,6 +936,12 @@
       box-shadow: 4px 4px 0 var(--placeholder-bg);
       overflow: hidden;
       user-select: none;
+    }
+
+    .cozy-player-wrapper.is-hls {
+      max-width: 460px;
+      border-color: var(--live-red);
+      box-shadow: 4px 4px 0 rgba(255, 42, 60, 0.35);
     }
 
     .cozy-player-wrapper:fullscreen,
@@ -911,9 +977,86 @@
     .cozy-video-element {
       width: 100%;
       max-height: 220px;
+      min-height: 180px;
       display: block;
       object-fit: contain;
       cursor: pointer;
+    }
+
+    .cozy-player-wrapper.is-hls .cozy-video-element {
+      max-height: 280px;
+      min-height: 210px;
+    }
+
+    .hls-status-pill {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: var(--live-red);
+      color: #ffffff;
+      border: 1.5px solid #ffffff;
+      padding: 3px 9px;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .hls-status-pill.is-vod {
+      background: rgba(24, 17, 36, 0.9);
+      border-color: var(--lavender);
+    }
+
+    .hls-status-pill.is-vod .hls-dot {
+      animation: none;
+      background: var(--soft-cyan);
+    }
+
+    .hls-error-overlay {
+      position: absolute;
+      inset: 0 0 46px 0;
+      background: rgba(14, 10, 22, 0.9);
+      color: #ffffff;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px;
+      text-align: center;
+      z-index: 5;
+    }
+
+    .hls-error-overlay.active {
+      display: flex;
+    }
+
+    .hls-error-msg {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--lavender);
+    }
+
+    .hls-retry-btn {
+      background: var(--live-red);
+      color: #ffffff;
+      border: 2px solid #ffffff;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .hls-retry-btn:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+      border-color: var(--border-crisp);
+      transform: translate(-1px, -1px);
     }
 
     .player-center-play {
@@ -965,6 +1108,10 @@
       pointer-events: none;
     }
 
+    .progress-fill.is-live {
+      background: var(--live-red);
+    }
+
     .controls-row {
       display: flex;
       align-items: center;
@@ -988,6 +1135,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .hls-go-live-btn {
+      display: none;
+      background: var(--live-red);
+      color: #ffffff;
+      border: 1px solid #ffffff;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      padding: 2px 7px;
+      cursor: pointer;
+    }
+
+    .hls-go-live-btn.visible {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .time-readout {
@@ -1159,7 +1324,7 @@
         </div>
         
         <div class="profile-details">
-          <div class="avatar-wrapper">
+          <div class="avatar-wrapper" id="profileAvatarWrapper">
             
             <!-- Live Last.fm Music Bubble -->
             <div class="music-bubble-container" id="musicBubbleContainer" style="display: none;">
@@ -1179,6 +1344,9 @@
             </div>
 
             <img class="avatar" src="profile.png" alt="prantik" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'" />
+            <span class="avatar-live-badge" id="avatarLiveBadge">
+              <span class="hls-dot"></span> LIVE
+            </span>
           </div>
 
           <div class="profile-info">
@@ -1255,6 +1423,18 @@
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
+    /* ================= HLS & LIVE PROFILE HELPERS ================= */
+    function isHlsUrl(url) {
+      if (!url || typeof url !== 'string') return false;
+      return url.trim().toLowerCase().includes('.m3u8');
+    }
+
+    function setProfileLiveStatus(isLive) {
+      const wrapper = document.getElementById('profileAvatarWrapper');
+      if (!wrapper) return;
+      wrapper.classList.toggle('is-live', Boolean(isLive));
     }
 
     /* ================= THEME TOGGLE ================= */
@@ -1384,6 +1564,7 @@
     async function loadPosts() {
       const feedList = document.getElementById('feedList');
       if (!supabaseClient) {
+        setProfileLiveStatus(false);
         feedList.innerHTML = `
           <div class="pop-shell">
             <div class="slide-card" style="padding: 24px; text-align: center;">
@@ -1407,6 +1588,7 @@
       }
 
       if (error || !data || data.length === 0) {
+        setProfileLiveStatus(false);
         feedList.innerHTML = `
           <div class="pop-shell">
             <div class="slide-card" style="padding: 24px; text-align: center;">
@@ -1419,6 +1601,10 @@
         `;
         return;
       }
+
+      // Show red border around profile picture as long as any post contains an HLS video link
+      const hasHlsPost = data.some(post => isHlsUrl(post.video_url));
+      setProfileLiveStatus(hasHlsPost);
 
       feedList.innerHTML = '';
       data.forEach(post => {
@@ -1480,27 +1666,62 @@
 
         if (post.video_url) {
           const playerId = `player-${post.id}`;
-          mediaHtml += `
-            <div>
-              <div class="cozy-player-wrapper" id="${playerId}">
-                <div class="player-center-play"><i class="fa-solid fa-play"></i></div>
-                <video class="cozy-video-element" src="${escapeHTML(post.video_url)}" playsinline preload="metadata"></video>
-                <div class="cozy-controls-bar">
-                  <div class="progress-track"><div class="progress-fill"></div></div>
-                  <div class="controls-row">
-                    <div class="controls-left">
-                      <button class="cozy-ctrl-btn btn-play-toggle"><i class="fa-solid fa-play"></i></button>
-                      <button class="cozy-ctrl-btn btn-mute-toggle"><i class="fa-solid fa-volume-high"></i></button>
-                      <span class="time-readout">0:00 / 0:00</span>
-                    </div>
-                    <div class="controls-right">
-                      <button class="cozy-ctrl-btn btn-fs-toggle"><i class="fa-solid fa-expand"></i></button>
+          if (isHlsUrl(post.video_url)) {
+            mediaHtml += `
+              <div>
+                <div class="cozy-player-wrapper is-hls" id="${playerId}" data-hls-url="${escapeHTML(post.video_url)}">
+                  <div class="hls-status-pill">
+                    <span class="hls-dot"></span>
+                    <span class="hls-status-text">LIVE</span>
+                  </div>
+                  <div class="hls-error-overlay">
+                    <div class="hls-error-msg">Stream is offline or unreachable.</div>
+                    <button type="button" class="hls-retry-btn">
+                      <i class="fa-solid fa-rotate-right"></i> Retry Stream
+                    </button>
+                  </div>
+                  <div class="player-center-play"><i class="fa-solid fa-play"></i></div>
+                  <video class="cozy-video-element" playsinline preload="none"></video>
+                  <div class="cozy-controls-bar">
+                    <div class="progress-track"><div class="progress-fill is-live" style="width: 100%;"></div></div>
+                    <div class="controls-row">
+                      <div class="controls-left">
+                        <button class="cozy-ctrl-btn btn-play-toggle" title="Play / Pause"><i class="fa-solid fa-play"></i></button>
+                        <button class="cozy-ctrl-btn btn-mute-toggle" title="Mute / Unmute"><i class="fa-solid fa-volume-high"></i></button>
+                        <span class="time-readout">● LIVE</span>
+                        <button type="button" class="hls-go-live-btn" title="Jump to Live Edge">GO LIVE</button>
+                      </div>
+                      <div class="controls-right">
+                        <button class="cozy-ctrl-btn btn-fs-toggle" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          `;
+            `;
+          } else {
+            mediaHtml += `
+              <div>
+                <div class="cozy-player-wrapper" id="${playerId}">
+                  <div class="player-center-play"><i class="fa-solid fa-play"></i></div>
+                  <video class="cozy-video-element" src="${escapeHTML(post.video_url)}" playsinline preload="metadata"></video>
+                  <div class="cozy-controls-bar">
+                    <div class="progress-track"><div class="progress-fill"></div></div>
+                    <div class="controls-row">
+                      <div class="controls-left">
+                        <button class="cozy-ctrl-btn btn-play-toggle"><i class="fa-solid fa-play"></i></button>
+                        <button class="cozy-ctrl-btn btn-mute-toggle"><i class="fa-solid fa-volume-high"></i></button>
+                        <span class="time-readout">0:00 / 0:00</span>
+                      </div>
+                      <div class="controls-right">
+                        <button class="cozy-ctrl-btn btn-fs-toggle"><i class="fa-solid fa-expand"></i></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
         }
 
         shell.innerHTML = `
@@ -1554,7 +1775,8 @@
       });
 
       document.querySelectorAll('.post-carousel').forEach(setupCarousel);
-      document.querySelectorAll('.cozy-player-wrapper').forEach(setupVideoPlayer);
+      document.querySelectorAll('.cozy-player-wrapper:not(.is-hls)').forEach(setupVideoPlayer);
+      document.querySelectorAll('.cozy-player-wrapper.is-hls').forEach(setupHlsPlayer);
     }
 
     /* ================= INSTAGRAM CAROUSEL CONTROLLER ================= */
@@ -1676,6 +1898,275 @@
       countEl.textContent = newTotal;
 
       await supabaseClient.from('posts').update({ votes: newTotal }).eq('id', postId);
+    }
+
+    /* ================= HLS LIVE VIDEO PLAYER ================= */
+    function setupHlsPlayer(wrapper) {
+      const hlsUrl = wrapper.getAttribute('data-hls-url');
+      const video = wrapper.querySelector('video');
+      const playBtn = wrapper.querySelector('.btn-play-toggle');
+      const centerPlay = wrapper.querySelector('.player-center-play');
+      const muteBtn = wrapper.querySelector('.btn-mute-toggle');
+      const fsBtn = wrapper.querySelector('.btn-fs-toggle');
+      const track = wrapper.querySelector('.progress-track');
+      const fill = wrapper.querySelector('.progress-fill');
+      const timeText = wrapper.querySelector('.time-readout');
+      const statusPill = wrapper.querySelector('.hls-status-pill');
+      const statusText = wrapper.querySelector('.hls-status-text');
+      const goLiveBtn = wrapper.querySelector('.hls-go-live-btn');
+      const errorOverlay = wrapper.querySelector('.hls-error-overlay');
+      const errorMsg = wrapper.querySelector('.hls-error-msg');
+      const retryBtn = wrapper.querySelector('.hls-retry-btn');
+      const controlsBar = wrapper.querySelector('.cozy-controls-bar');
+
+      let hls = null;
+      let isLiveStream = true;
+      let mediaRecoveryAttempts = 0;
+      let networkRecoveryAttempts = 0;
+
+      controlsBar.addEventListener('click', (e) => e.stopPropagation());
+      errorOverlay.addEventListener('click', (e) => e.stopPropagation());
+
+      function formatTime(seconds) {
+        if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+      }
+
+      function showStreamError(message) {
+        errorMsg.textContent = message || 'Stream is offline or unreachable.';
+        errorOverlay.classList.add('active');
+      }
+
+      function hideStreamError() {
+        errorOverlay.classList.remove('active');
+      }
+
+      function setLiveMode(live) {
+        isLiveStream = live;
+        if (live) {
+          statusPill.classList.remove('is-vod');
+          statusText.textContent = 'LIVE';
+          fill.classList.add('is-live');
+          fill.style.width = '100%';
+          timeText.textContent = '● LIVE';
+        } else {
+          statusPill.classList.add('is-vod');
+          statusText.textContent = 'HLS';
+          fill.classList.remove('is-live');
+          goLiveBtn.classList.remove('visible');
+        }
+      }
+
+      function getLiveEdge() {
+        if (hls && typeof hls.liveSyncPosition === 'number' && isFinite(hls.liveSyncPosition)) {
+          return hls.liveSyncPosition;
+        }
+        if (video.seekable && video.seekable.length > 0) {
+          return video.seekable.end(video.seekable.length - 1);
+        }
+        return null;
+      }
+
+      function jumpToLiveEdge() {
+        const edge = getLiveEdge();
+        if (edge !== null && isFinite(edge)) {
+          video.currentTime = edge;
+        }
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+        goLiveBtn.classList.remove('visible');
+      }
+
+      function initHlsSource() {
+        hideStreamError();
+        mediaRecoveryAttempts = 0;
+        networkRecoveryAttempts = 0;
+
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls({
+            lowLatencyMode: true,
+            backBufferLength: 60,
+            maxBufferLength: 12
+          });
+
+          hls.loadSource(hlsUrl);
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            hideStreamError();
+          });
+
+          hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+            if (data && data.details) {
+              setLiveMode(Boolean(data.details.live));
+            }
+          });
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (!data.fatal) return;
+
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRecoveryAttempts < 2) {
+              networkRecoveryAttempts++;
+              setTimeout(() => {
+                if (hls) hls.startLoad();
+              }, 1000);
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRecoveryAttempts < 2) {
+              mediaRecoveryAttempts++;
+              hls.recoverMediaError();
+            } else {
+              showStreamError('Stream is offline or unreachable.');
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = hlsUrl;
+          video.addEventListener('loadedmetadata', () => {
+            setLiveMode(!isFinite(video.duration));
+          });
+          video.addEventListener('error', () => {
+            showStreamError('Stream is offline or unreachable.');
+          });
+        } else {
+          showStreamError('HLS playback is not supported in this browser.');
+        }
+      }
+
+      function updatePlayState(isPlaying) {
+        if (isPlaying) {
+          wrapper.classList.add('playing');
+          playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        } else {
+          wrapper.classList.remove('playing');
+          playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+      }
+
+      function togglePlay() {
+        if (video.paused || video.ended) {
+          if (isLiveStream) {
+            const edge = getLiveEdge();
+            if (edge !== null && Math.abs(edge - video.currentTime) > 5) {
+              video.currentTime = edge;
+            }
+          }
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      }
+
+      playBtn.addEventListener('click', togglePlay);
+      centerPlay.addEventListener('click', togglePlay);
+      video.addEventListener('click', togglePlay);
+      goLiveBtn.addEventListener('click', jumpToLiveEdge);
+      retryBtn.addEventListener('click', () => {
+        initHlsSource();
+        video.play().catch(() => {});
+      });
+
+      video.addEventListener('play', () => updatePlayState(true));
+      video.addEventListener('pause', () => {
+        updatePlayState(false);
+        if (isLiveStream) goLiveBtn.classList.add('visible');
+      });
+      video.addEventListener('ended', () => {
+        updatePlayState(false);
+        if (!isLiveStream) fill.style.width = '0%';
+      });
+
+      muteBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        muteBtn.innerHTML = video.muted
+          ? '<i class="fa-solid fa-volume-xmark"></i>'
+          : '<i class="fa-solid fa-volume-high"></i>';
+      });
+
+      video.addEventListener('timeupdate', () => {
+        if (isLiveStream) {
+          const edge = getLiveEdge();
+          const behind = edge !== null ? Math.max(0, edge - video.currentTime) : 0;
+          if (behind > 6 || video.paused) {
+            goLiveBtn.classList.add('visible');
+            timeText.textContent = `-${formatTime(behind)} BEHIND`;
+          } else {
+            goLiveBtn.classList.remove('visible');
+            timeText.textContent = '● LIVE';
+          }
+
+          if (video.seekable && video.seekable.length > 0) {
+            const start = video.seekable.start(0);
+            const end = video.seekable.end(video.seekable.length - 1);
+            const span = end - start;
+            const pct = span > 0 ? Math.max(0, Math.min(100, ((video.currentTime - start) / span) * 100)) : 100;
+            fill.style.width = `${pct}%`;
+          } else {
+            fill.style.width = '100%';
+          }
+        } else if (video.duration && isFinite(video.duration)) {
+          const pct = (video.currentTime / video.duration) * 100;
+          fill.style.width = `${pct}%`;
+          timeText.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+        }
+      });
+
+      function handleSeek(e) {
+        const rect = track.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+        if (isLiveStream) {
+          if (video.seekable && video.seekable.length > 0) {
+            const start = video.seekable.start(0);
+            const end = video.seekable.end(video.seekable.length - 1);
+            video.currentTime = start + pos * (end - start);
+            fill.style.width = `${pos * 100}%`;
+          }
+        } else if (video.duration && isFinite(video.duration)) {
+          video.currentTime = pos * video.duration;
+          fill.style.width = `${pos * 100}%`;
+        }
+      }
+
+      let isScrubbing = false;
+      track.addEventListener('mousedown', (e) => {
+        isScrubbing = true;
+        handleSeek(e);
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (isScrubbing) handleSeek(e);
+      });
+      window.addEventListener('mouseup', () => {
+        isScrubbing = false;
+      });
+
+      fsBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+          } else if (video.webkitEnterFullscreen) {
+            video.webkitEnterFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+        }
+      });
+
+      document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement === wrapper) {
+          fsBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+        } else {
+          fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+        }
+      });
+
+      initHlsSource();
     }
 
     /* ================= CUSTOM VIDEO PLAYER ================= */
