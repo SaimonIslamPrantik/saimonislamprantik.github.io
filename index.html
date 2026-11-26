@@ -23,6 +23,9 @@
 
   <!-- HLS.js for .m3u8 Live & VOD Streams -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+
+  <!-- Divcord Embed Bridge -->
+  <script src="https://divcord.gg/embed.js"></script>
   
   <style>
     /* Local font replacing Darumadrop One */
@@ -947,13 +950,18 @@
       cursor: pointer;
     }
 
-    /* HLS Live Player fills the post width and fits cleanly inside the viewport */
+    /* HLS Live Stream + Live Chat Layout */
+    .hls-live-layout {
+      width: 100%;
+    }
+
     .cozy-player-wrapper.is-hls {
       display: block;
       width: 100%;
       max-width: 100%;
       border-color: var(--live-red);
       box-shadow: 4px 4px 0 rgba(255, 42, 60, 0.35);
+      margin-bottom: 16px;
     }
 
     .cozy-player-wrapper.is-hls .cozy-video-element {
@@ -967,11 +975,55 @@
       background: #000000;
     }
 
-    /* Fullscreen rules come AFTER .is-hls so fullscreen fills 100% of screen */
+    .hls-chat-panel {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .divcord-chat-frame {
+      width: 100%;
+      height: 520px;
+      border: 2px solid #885bc4;
+      border-radius: 0;
+      box-shadow: 4px 4px 0 #2d1d42;
+      background: #0e1410;
+      display: block;
+    }
+
+    /* Fullscreen Chat Toggle Icon (always shown at bottom-right in fullscreen) */
+    .hls-fs-chat-btn {
+      display: none;
+      position: absolute;
+      bottom: 62px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      background: rgba(24, 17, 36, 0.92);
+      color: var(--lavender);
+      border: 2px solid #885bc4;
+      box-shadow: 3px 3px 0 #2d1d42;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      z-index: 9;
+      transition: bottom 0.3s ease, transform 0.18s var(--spring-slide), background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .hls-fs-chat-btn:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+      transform: translate(-2px, -2px);
+    }
+
+    .hls-live-layout.fs-chat-open .hls-fs-chat-btn {
+      background: var(--green);
+      color: #1b380b;
+    }
+
+    /* Fullscreen rules for regular video & HLS layout */
     .cozy-player-wrapper:fullscreen,
-    .cozy-player-wrapper:-webkit-full-screen,
-    .cozy-player-wrapper.is-hls:fullscreen,
-    .cozy-player-wrapper.is-hls:-webkit-full-screen {
+    .cozy-player-wrapper:-webkit-full-screen {
       width: 100vw !important;
       max-width: 100vw !important;
       height: 100vh !important;
@@ -985,13 +1037,44 @@
       box-shadow: none;
     }
 
-    .cozy-player-wrapper:fullscreen .cozy-video-element,
-    .cozy-player-wrapper:-webkit-full-screen .cozy-video-element,
-    .cozy-player-wrapper.is-hls:fullscreen .cozy-video-element,
-    .cozy-player-wrapper.is-hls:-webkit-full-screen .cozy-video-element {
-      width: 100% !important;
+    .hls-live-layout:fullscreen,
+    .hls-live-layout:-webkit-full-screen {
+      width: 100vw !important;
+      max-width: 100vw !important;
       height: 100vh !important;
       max-height: 100vh !important;
+      display: flex;
+      flex-direction: row;
+      background: #000;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .hls-live-layout:fullscreen .cozy-player-wrapper.is-hls,
+    .hls-live-layout:-webkit-full-screen .cozy-player-wrapper.is-hls {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #000;
+      margin: 0;
+      border: none;
+      box-shadow: none;
+    }
+
+    .cozy-player-wrapper:fullscreen .cozy-video-element,
+    .cozy-player-wrapper:-webkit-full-screen .cozy-video-element,
+    .hls-live-layout:fullscreen .cozy-video-element,
+    .hls-live-layout:-webkit-full-screen .cozy-video-element {
+      width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
       aspect-ratio: auto !important;
       object-fit: contain;
       margin-bottom: 0 !important;
@@ -999,8 +1082,8 @@
 
     .cozy-player-wrapper:fullscreen .cozy-controls-bar,
     .cozy-player-wrapper:-webkit-full-screen .cozy-controls-bar,
-    .cozy-player-wrapper.is-hls:fullscreen .cozy-controls-bar,
-    .cozy-player-wrapper.is-hls:-webkit-full-screen .cozy-controls-bar {
+    .hls-live-layout:fullscreen .cozy-controls-bar,
+    .hls-live-layout:-webkit-full-screen .cozy-controls-bar {
       position: absolute;
       bottom: 0;
       left: 0;
@@ -1010,27 +1093,78 @@
       transition: opacity 0.35s ease, visibility 0.35s ease;
     }
 
-    .cozy-player-wrapper:fullscreen .hls-status-pill,
-    .cozy-player-wrapper:-webkit-full-screen .hls-status-pill {
+    .hls-live-layout:fullscreen .hls-status-pill,
+    .hls-live-layout:-webkit-full-screen .hls-status-pill {
       transition: opacity 0.35s ease, visibility 0.35s ease;
     }
 
+    /* Chat hidden by default in fullscreen; shown only when .fs-chat-open */
+    .hls-live-layout:fullscreen .hls-chat-panel,
+    .hls-live-layout:-webkit-full-screen .hls-chat-panel {
+      display: none;
+    }
+
+    .hls-live-layout:fullscreen.fs-chat-open .hls-chat-panel,
+    .hls-live-layout:-webkit-full-screen.fs-chat-open .hls-chat-panel {
+      display: block;
+      flex: 0 0 360px;
+      width: 360px;
+      height: 100vh;
+      margin: 0;
+      border-left: 2px solid #885bc4;
+      background: #0e1410;
+      z-index: 8;
+    }
+
+    .hls-live-layout:fullscreen.fs-chat-open .divcord-chat-frame,
+    .hls-live-layout:-webkit-full-screen.fs-chat-open .divcord-chat-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      box-shadow: none;
+    }
+
+    /* Chat icon always appears in bottom right of stream in fullscreen */
+    .hls-live-layout:fullscreen .hls-fs-chat-btn,
+    .hls-live-layout:-webkit-full-screen .hls-fs-chat-btn {
+      display: flex;
+    }
+
+    .hls-live-layout:fullscreen .cozy-player-wrapper.is-hls.fs-idle .hls-fs-chat-btn,
+    .hls-live-layout:-webkit-full-screen .cozy-player-wrapper.is-hls.fs-idle .hls-fs-chat-btn {
+      bottom: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .hls-live-layout:fullscreen.fs-chat-open,
+      .hls-live-layout:-webkit-full-screen.fs-chat-open {
+        flex-direction: column;
+      }
+      .hls-live-layout:fullscreen.fs-chat-open .cozy-player-wrapper.is-hls,
+      .hls-live-layout:-webkit-full-screen.fs-chat-open .cozy-player-wrapper.is-hls {
+        flex: 0 0 44vh;
+        height: 44vh !important;
+        max-height: 44vh !important;
+      }
+      .hls-live-layout:fullscreen.fs-chat-open .hls-chat-panel,
+      .hls-live-layout:-webkit-full-screen.fs-chat-open .hls-chat-panel {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 56vh;
+        border-left: none;
+        border-top: 2px solid #885bc4;
+      }
+    }
+
     /* Fullscreen Auto-Hide UI when idle */
-    .cozy-player-wrapper:fullscreen.fs-idle,
-    .cozy-player-wrapper:-webkit-full-screen.fs-idle,
-    .cozy-player-wrapper:fullscreen.fs-idle .cozy-video-element,
-    .cozy-player-wrapper:-webkit-full-screen.fs-idle .cozy-video-element {
+    .cozy-player-wrapper.fs-idle,
+    .cozy-player-wrapper.fs-idle .cozy-video-element {
       cursor: none;
     }
 
-    .cozy-player-wrapper:fullscreen.fs-idle .cozy-controls-bar,
-    .cozy-player-wrapper:-webkit-full-screen.fs-idle .cozy-controls-bar,
-    .cozy-player-wrapper.is-hls:fullscreen.fs-idle .cozy-controls-bar,
-    .cozy-player-wrapper.is-hls:-webkit-full-screen.fs-idle .cozy-controls-bar,
-    .cozy-player-wrapper:fullscreen.fs-idle .hls-status-pill,
-    .cozy-player-wrapper:-webkit-full-screen.fs-idle .hls-status-pill,
-    .cozy-player-wrapper:fullscreen.fs-idle .player-center-play,
-    .cozy-player-wrapper:-webkit-full-screen.fs-idle .player-center-play {
+    .cozy-player-wrapper.fs-idle .cozy-controls-bar,
+    .cozy-player-wrapper.fs-idle .hls-status-pill,
+    .cozy-player-wrapper.fs-idle .player-center-play {
       opacity: 0 !important;
       visibility: hidden;
       pointer-events: none;
@@ -1474,6 +1608,269 @@
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
+    /* ================= DIVCORD LIVE CHAT BRIDGE ================= */
+    const DIVCORD_DARK_THEME_CSS = `
+      @import url('https://fonts.googleapis.com/css2?family=Darumadrop+One&family=Hanken+Grotesk:ital,wght@0,400..900;1,400..900&display=swap');
+
+      :root {
+        --lavender: #e3d7ff;
+        --green: #95e06c;
+        --coral: #ff5a5f;
+        --soft-cyan: #7ee8fa;
+
+        --bg-page: #0e1410;
+        --grid-line-color: rgba(149, 224, 108, 0.14);
+        --card-bg: #181124;
+        --text-main: #f0eaff;
+        --text-muted: #b49fcf;
+        --border-crisp: #885bc4;
+        --placeholder-bg: #2d1d42;
+        --placeholder-border: rgba(227, 215, 255, 0.3);
+        --glow-top: rgba(136, 91, 196, 0.35);
+        --glow-mid: rgba(126, 232, 250, 0.12);
+        --surface-subtle: #221733;
+        --spring-slide: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+      }
+
+      /* Zero-Radius Strictness */
+      *, *::before, *::after {
+        border-radius: 0 !important;
+      }
+
+      body.embed {
+        font-family: 'Hanken Grotesk', sans-serif !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.2px !important;
+        background-color: var(--bg-page) !important;
+        background-image:
+          linear-gradient(to right, var(--grid-line-color) 1.5px, transparent 1.5px),
+          linear-gradient(to bottom, var(--grid-line-color) 1.5px, transparent 1.5px) !important;
+        background-size: 26px 26px !important;
+        color: var(--text-main) !important;
+        position: relative !important;
+      }
+
+      body.embed::before {
+        content: "" !important;
+        position: fixed !important;
+        top: -30px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 94vw !important;
+        height: 320px !important;
+        background: radial-gradient(ellipse at top, var(--glow-top) 0%, var(--glow-mid) 45%, transparent 75%) !important;
+        filter: blur(32px) !important;
+        pointer-events: none !important;
+        z-index: 0 !important;
+      }
+
+      body.embed, button, input, textarea, select {
+        font-family: 'Hanken Grotesk', sans-serif !important;
+      }
+
+      code, pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+      }
+
+      /* Top Chrome Bar */
+      #embed-bar {
+        background: var(--placeholder-bg) !important;
+        color: var(--text-main) !important;
+        border-bottom: 2px solid var(--border-crisp) !important;
+        font-weight: 800 !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      #embed-bar h1,
+      #embed-bar .room-name,
+      #embed-bar strong {
+        font-family: 'Darumadrop One', cursive, sans-serif !important;
+        font-weight: 400 !important;
+        letter-spacing: 0.8px !important;
+        text-transform: lowercase !important;
+      }
+
+      /* Sidebar */
+      #embed-aside {
+        background: var(--surface-subtle) !important;
+        color: var(--text-main) !important;
+        border-color: var(--border-crisp) !important;
+        border-width: 2px !important;
+        z-index: 2 !important;
+      }
+
+      #embed-aside a,
+      #embed-aside button,
+      #embed-aside li {
+        transition: transform 0.18s var(--spring-slide), background-color 0.2s ease, color 0.2s ease !important;
+      }
+
+      #embed-aside a:hover,
+      #embed-aside li:hover {
+        background: var(--soft-cyan) !important;
+        color: #181124 !important;
+        transform: translate(-2px, -2px) !important;
+      }
+
+      /* Message Feed */
+      #messages {
+        background: transparent !important;
+        position: relative !important;
+        z-index: 1 !important;
+      }
+
+      .msg {
+        background: var(--card-bg) !important;
+        color: var(--text-main) !important;
+        border: 2px solid var(--border-crisp) !important;
+        box-shadow: 4px 4px 0 var(--placeholder-bg) !important;
+        margin: 8px 10px !important;
+        padding: 8px 12px !important;
+        transition: transform 0.2s var(--spring-slide), box-shadow 0.2s ease !important;
+      }
+
+      .msg:hover {
+        transform: translate(-2px, -2px) !important;
+        box-shadow: 6px 6px 0 var(--border-crisp) !important;
+      }
+
+      .msg img,
+      .msg .avatar {
+        border: 2px solid var(--border-crisp) !important;
+      }
+
+      .msg a {
+        color: var(--text-main) !important;
+        text-decoration: underline !important;
+        text-decoration-thickness: 2px !important;
+        background: rgba(126, 232, 250, 0.22) !important;
+      }
+
+      .msg a:hover {
+        background: var(--soft-cyan) !important;
+        color: #181124 !important;
+      }
+
+      .msg blockquote {
+        border-left: 4px solid var(--border-crisp) !important;
+        background: var(--surface-subtle) !important;
+        padding: 6px 12px !important;
+        font-style: italic !important;
+      }
+
+      .msg pre {
+        background: #1b1229 !important;
+        color: #f0eaff !important;
+        border: 2px solid var(--border-crisp) !important;
+        box-shadow: 3px 3px 0 var(--placeholder-bg) !important;
+        padding: 8px 10px !important;
+      }
+
+      .msg table, .msg th, .msg td {
+        border: 2px solid var(--border-crisp) !important;
+      }
+
+      .msg th {
+        background: var(--placeholder-bg) !important;
+        font-weight: 800 !important;
+      }
+
+      /* Composer & Inputs */
+      #composer {
+        background: var(--card-bg) !important;
+        border-top: 2px solid var(--border-crisp) !important;
+        padding: 10px !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      input, textarea, select, #msg-input {
+        background: var(--surface-subtle) !important;
+        color: var(--text-main) !important;
+        border: 2px solid var(--border-crisp) !important;
+        font-weight: 600 !important;
+        outline: none !important;
+        transition: transform 0.18s var(--spring-slide), box-shadow 0.18s ease, background-color 0.2s ease !important;
+      }
+
+      input::placeholder, textarea::placeholder, #msg-input::placeholder {
+        color: var(--text-muted) !important;
+        opacity: 0.75 !important;
+      }
+
+      input:focus, textarea:focus, #msg-input:focus {
+        background: var(--card-bg) !important;
+        transform: translate(-2px, -2px) !important;
+        box-shadow: 4px 4px 0 var(--border-crisp) !important;
+      }
+
+      /* Hard-Offset Cozy Buttons */
+      button {
+        background: var(--card-bg) !important;
+        color: var(--text-main) !important;
+        border: 2px solid var(--border-crisp) !important;
+        font-weight: 800 !important;
+        box-shadow: 3px 3px 0 var(--border-crisp) !important;
+        cursor: pointer !important;
+        transition: transform 0.18s var(--spring-slide), background-color 0.2s ease, color 0.2s ease, box-shadow 0.18s ease !important;
+      }
+
+      button:hover, button:focus-visible {
+        background: var(--soft-cyan) !important;
+        color: #181124 !important;
+        transform: translate(-2px, -2px) !important;
+        box-shadow: 5px 5px 0 var(--border-crisp) !important;
+      }
+
+      button:active {
+        transform: translate(1px, 1px) !important;
+        box-shadow: 2px 2px 0 var(--border-crisp) !important;
+      }
+
+      #composer button[type="submit"],
+      #auth-box button[type="submit"] {
+        background: var(--green) !important;
+        color: #1b380b !important;
+      }
+
+      #composer button[type="submit"]:hover,
+      #auth-box button[type="submit"]:hover {
+        background: var(--soft-cyan) !important;
+        color: #181124 !important;
+      }
+
+      /* Auth / Sign-In Card */
+      #auth {
+        background: transparent !important;
+      }
+
+      #auth-box {
+        background: var(--card-bg) !important;
+        color: var(--text-main) !important;
+        border: 2px solid var(--border-crisp) !important;
+        box-shadow: 6px 6px 0 var(--placeholder-bg) !important;
+      }
+
+      /* Scrollbars */
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: var(--surface-subtle); border-left: 2px solid var(--border-crisp); }
+      ::-webkit-scrollbar-thumb { background: #2b1a3f; border: 2px solid var(--border-crisp); }
+      ::-webkit-scrollbar-thumb:hover { background: var(--soft-cyan); }
+    `;
+
+    function initDivcordChat(frame) {
+      if (!frame || typeof window.Divcord === 'undefined') return;
+      try {
+        const bridge = window.Divcord.connect(frame);
+        bridge.ready.then(() => {
+          bridge.setCSS(DIVCORD_DARK_THEME_CSS, { reset: false });
+        });
+      } catch (e) {
+        console.warn('Divcord embed init error:', e);
+      }
+    }
+
     /* ================= HLS & LIVE PROFILE HELPERS ================= */
     function isHlsUrl(url) {
       if (!url || typeof url !== 'string') return false;
@@ -1487,7 +1884,7 @@
     }
 
     /* ================= FULLSCREEN UI AUTO-HIDE ================= */
-    function setupFullscreenAutoHide(wrapper, isInteractingFn) {
+    function setupFullscreenAutoHide(wrapper, fsTarget, isInteractingFn) {
       let idleTimer = null;
       let lastMoveX = null;
       let lastMoveY = null;
@@ -1495,10 +1892,8 @@
       const IDLE_DELAY_MS = 2500;
 
       function isThisFullscreen() {
-        return (
-          document.fullscreenElement === wrapper ||
-          document.webkitFullscreenElement === wrapper
-        );
+        const activeEl = document.fullscreenElement || document.webkitFullscreenElement;
+        return activeEl === fsTarget || activeEl === wrapper;
       }
 
       function clearIdleTimer() {
@@ -1567,6 +1962,9 @@
           showUIAndResetTimer();
         } else {
           wrapper.classList.remove('fs-idle');
+          if (fsTarget !== wrapper) {
+            fsTarget.classList.remove('fs-chat-open');
+          }
           clearIdleTimer();
         }
       }
@@ -1750,6 +2148,8 @@
       const hasHlsPost = data.some(post => isHlsUrl(post.video_url));
       setProfileLiveStatus(hasHlsPost);
 
+      let divcordIdAssigned = false;
+
       feedList.innerHTML = '';
       data.forEach(post => {
         const shell = document.createElement('div');
@@ -1811,8 +2211,11 @@
         if (post.video_url) {
           const playerId = `player-${post.id}`;
           if (isHlsUrl(post.video_url)) {
+            const chatFrameId = !divcordIdAssigned ? 'divcord-chat' : `divcord-chat-${post.id}`;
+            divcordIdAssigned = true;
+
             mediaHtml += `
-              <div>
+              <div class="hls-live-layout" id="hls-layout-${post.id}">
                 <div class="cozy-player-wrapper is-hls" id="${playerId}" data-hls-url="${escapeHTML(post.video_url)}">
                   <div class="hls-status-pill">
                     <span class="hls-dot"></span>
@@ -1826,6 +2229,9 @@
                   </div>
                   <div class="player-center-play"><i class="fa-solid fa-play"></i></div>
                   <video class="cozy-video-element" playsinline preload="none"></video>
+                  <button type="button" class="hls-fs-chat-btn" title="Toggle Live Chat" aria-label="Toggle Live Chat">
+                    <i class="fa-solid fa-comments"></i>
+                  </button>
                   <div class="cozy-controls-bar">
                     <div class="progress-track"><div class="progress-fill is-live" style="width: 100%;"></div></div>
                     <div class="controls-row">
@@ -1840,6 +2246,15 @@
                       </div>
                     </div>
                   </div>
+                </div>
+                <div class="hls-chat-panel">
+                  <iframe
+                    id="${chatFrameId}"
+                    class="divcord-chat-frame"
+                    src="https://funsies.divcord.gg/embed/live"
+                    title="Divcord Live Chat"
+                    allow="clipboard-write"
+                  ></iframe>
                 </div>
               </div>
             `;
@@ -1920,7 +2335,7 @@
 
       document.querySelectorAll('.post-carousel').forEach(setupCarousel);
       document.querySelectorAll('.cozy-player-wrapper:not(.is-hls)').forEach(setupVideoPlayer);
-      document.querySelectorAll('.cozy-player-wrapper.is-hls').forEach(setupHlsPlayer);
+      document.querySelectorAll('.hls-live-layout').forEach(setupHlsPlayer);
     }
 
     /* ================= INSTAGRAM CAROUSEL CONTROLLER ================= */
@@ -2045,7 +2460,10 @@
     }
 
     /* ================= HLS LIVE VIDEO PLAYER ================= */
-    function setupHlsPlayer(wrapper) {
+    function setupHlsPlayer(hlsLayout) {
+      const wrapper = hlsLayout.querySelector('.cozy-player-wrapper.is-hls');
+      const chatFrame = hlsLayout.querySelector('.divcord-chat-frame');
+      const chatToggleBtn = hlsLayout.querySelector('.hls-fs-chat-btn');
       const hlsUrl = wrapper.getAttribute('data-hls-url');
       const video = wrapper.querySelector('video');
       const playBtn = wrapper.querySelector('.btn-play-toggle');
@@ -2069,10 +2487,22 @@
       let networkRecoveryAttempts = 0;
       let isScrubbing = false;
 
-      const fsAutoHide = setupFullscreenAutoHide(wrapper, () => isScrubbing);
+      initDivcordChat(chatFrame);
+
+      const fsAutoHide = setupFullscreenAutoHide(wrapper, hlsLayout, () => isScrubbing);
 
       controlsBar.addEventListener('click', (e) => e.stopPropagation());
       errorOverlay.addEventListener('click', (e) => e.stopPropagation());
+
+      if (chatToggleBtn) {
+        chatToggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = hlsLayout.classList.toggle('fs-chat-open');
+          chatToggleBtn.innerHTML = isOpen
+            ? '<i class="fa-solid fa-xmark"></i>'
+            : '<i class="fa-solid fa-comments"></i>';
+        });
+      }
 
       function formatTime(seconds) {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
@@ -2304,10 +2734,10 @@
       fsBtn.addEventListener('click', () => {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         if (!fsEl) {
-          if (wrapper.requestFullscreen) {
-            wrapper.requestFullscreen();
-          } else if (wrapper.webkitRequestFullscreen) {
-            wrapper.webkitRequestFullscreen();
+          if (hlsLayout.requestFullscreen) {
+            hlsLayout.requestFullscreen();
+          } else if (hlsLayout.webkitRequestFullscreen) {
+            hlsLayout.webkitRequestFullscreen();
           } else if (video.webkitEnterFullscreen) {
             video.webkitEnterFullscreen();
           }
@@ -2320,15 +2750,19 @@
         }
       });
 
-      function updateFsIcon() {
+      function updateFsState() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-        fsBtn.innerHTML = fsEl === wrapper
+        const isFs = fsEl === hlsLayout;
+        fsBtn.innerHTML = isFs
           ? '<i class="fa-solid fa-compress"></i>'
           : '<i class="fa-solid fa-expand"></i>';
+        if (!isFs && chatToggleBtn) {
+          chatToggleBtn.innerHTML = '<i class="fa-solid fa-comments"></i>';
+        }
       }
 
-      document.addEventListener('fullscreenchange', updateFsIcon);
-      document.addEventListener('webkitfullscreenchange', updateFsIcon);
+      document.addEventListener('fullscreenchange', updateFsState);
+      document.addEventListener('webkitfullscreenchange', updateFsState);
 
       initHlsSource();
     }
@@ -2346,7 +2780,7 @@
       const controlsBar = wrapper.querySelector('.cozy-controls-bar');
 
       let isScrubbing = false;
-      const fsAutoHide = setupFullscreenAutoHide(wrapper, () => isScrubbing);
+      const fsAutoHide = setupFullscreenAutoHide(wrapper, wrapper, () => isScrubbing);
 
       controlsBar.addEventListener('click', (e) => e.stopPropagation());
 
