@@ -990,11 +990,11 @@
     .cozy-player-wrapper.is-hls:fullscreen .cozy-video-element,
     .cozy-player-wrapper.is-hls:-webkit-full-screen .cozy-video-element {
       width: 100% !important;
-      height: calc(100vh - 54px) !important;
-      max-height: calc(100vh - 54px) !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
       aspect-ratio: auto !important;
       object-fit: contain;
-      margin-bottom: 54px;
+      margin-bottom: 0 !important;
     }
 
     .cozy-player-wrapper:fullscreen .cozy-controls-bar,
@@ -1005,7 +1005,35 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(24, 17, 36, 0.96);
+      z-index: 6;
+      background: rgba(24, 17, 36, 0.94);
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    .cozy-player-wrapper:fullscreen .hls-status-pill,
+    .cozy-player-wrapper:-webkit-full-screen .hls-status-pill {
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    /* Fullscreen Auto-Hide UI when idle */
+    .cozy-player-wrapper:fullscreen.fs-idle,
+    .cozy-player-wrapper:-webkit-full-screen.fs-idle,
+    .cozy-player-wrapper:fullscreen.fs-idle .cozy-video-element,
+    .cozy-player-wrapper:-webkit-full-screen.fs-idle .cozy-video-element {
+      cursor: none;
+    }
+
+    .cozy-player-wrapper:fullscreen.fs-idle .cozy-controls-bar,
+    .cozy-player-wrapper:-webkit-full-screen.fs-idle .cozy-controls-bar,
+    .cozy-player-wrapper.is-hls:fullscreen.fs-idle .cozy-controls-bar,
+    .cozy-player-wrapper.is-hls:-webkit-full-screen.fs-idle .cozy-controls-bar,
+    .cozy-player-wrapper:fullscreen.fs-idle .hls-status-pill,
+    .cozy-player-wrapper:-webkit-full-screen.fs-idle .hls-status-pill,
+    .cozy-player-wrapper:fullscreen.fs-idle .player-center-play,
+    .cozy-player-wrapper:-webkit-full-screen.fs-idle .player-center-play {
+      opacity: 0 !important;
+      visibility: hidden;
+      pointer-events: none;
     }
 
     .hls-status-pill {
@@ -1095,6 +1123,7 @@
       justify-content: center;
       cursor: pointer;
       z-index: 3;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
     }
 
     .cozy-player-wrapper.playing .player-center-play {
@@ -1455,6 +1484,101 @@
       const wrapper = document.getElementById('profileAvatarWrapper');
       if (!wrapper) return;
       wrapper.classList.toggle('is-live', Boolean(isLive));
+    }
+
+    /* ================= FULLSCREEN UI AUTO-HIDE ================= */
+    function setupFullscreenAutoHide(wrapper, isInteractingFn) {
+      let idleTimer = null;
+      let lastMoveX = null;
+      let lastMoveY = null;
+      let wokeFromHiddenTouch = false;
+      const IDLE_DELAY_MS = 2500;
+
+      function isThisFullscreen() {
+        return (
+          document.fullscreenElement === wrapper ||
+          document.webkitFullscreenElement === wrapper
+        );
+      }
+
+      function clearIdleTimer() {
+        if (idleTimer) {
+          clearTimeout(idleTimer);
+          idleTimer = null;
+        }
+      }
+
+      function scheduleIdleHide() {
+        clearIdleTimer();
+        if (!isThisFullscreen()) return;
+        idleTimer = setTimeout(() => {
+          if (!isThisFullscreen()) return;
+          if (isInteractingFn && isInteractingFn()) {
+            scheduleIdleHide();
+            return;
+          }
+          wrapper.classList.add('fs-idle');
+        }, IDLE_DELAY_MS);
+      }
+
+      function showUIAndResetTimer() {
+        if (!isThisFullscreen()) {
+          wrapper.classList.remove('fs-idle');
+          clearIdleTimer();
+          return;
+        }
+        wrapper.classList.remove('fs-idle');
+        scheduleIdleHide();
+      }
+
+      wrapper.addEventListener('mousemove', (e) => {
+        if (!isThisFullscreen()) return;
+        if (lastMoveX === e.clientX && lastMoveY === e.clientY) return;
+        lastMoveX = e.clientX;
+        lastMoveY = e.clientY;
+        showUIAndResetTimer();
+      });
+
+      wrapper.addEventListener('mousedown', () => {
+        if (isThisFullscreen()) showUIAndResetTimer();
+      });
+
+      wrapper.addEventListener('touchstart', () => {
+        if (!isThisFullscreen()) return;
+        if (wrapper.classList.contains('fs-idle')) {
+          wokeFromHiddenTouch = true;
+          setTimeout(() => { wokeFromHiddenTouch = false; }, 450);
+        }
+        showUIAndResetTimer();
+      }, { passive: true });
+
+      wrapper.addEventListener('click', () => {
+        if (isThisFullscreen()) showUIAndResetTimer();
+      });
+
+      document.addEventListener('keydown', () => {
+        if (isThisFullscreen()) showUIAndResetTimer();
+      });
+
+      function onFsChange() {
+        lastMoveX = null;
+        lastMoveY = null;
+        if (isThisFullscreen()) {
+          showUIAndResetTimer();
+        } else {
+          wrapper.classList.remove('fs-idle');
+          clearIdleTimer();
+        }
+      }
+
+      document.addEventListener('fullscreenchange', onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
+
+      return {
+        shouldIgnoreVideoClick() {
+          return wokeFromHiddenTouch;
+        }
+      };
     }
 
     /* ================= THEME TOGGLE ================= */
@@ -1943,6 +2067,9 @@
       let isLiveStream = true;
       let mediaRecoveryAttempts = 0;
       let networkRecoveryAttempts = 0;
+      let isScrubbing = false;
+
+      const fsAutoHide = setupFullscreenAutoHide(wrapper, () => isScrubbing);
 
       controlsBar.addEventListener('click', (e) => e.stopPropagation());
       errorOverlay.addEventListener('click', (e) => e.stopPropagation());
@@ -2090,7 +2217,10 @@
 
       playBtn.addEventListener('click', togglePlay);
       centerPlay.addEventListener('click', togglePlay);
-      video.addEventListener('click', togglePlay);
+      video.addEventListener('click', () => {
+        if (fsAutoHide.shouldIgnoreVideoClick()) return;
+        togglePlay();
+      });
       goLiveBtn.addEventListener('click', jumpToLiveEdge);
       retryBtn.addEventListener('click', () => {
         initHlsSource();
@@ -2160,7 +2290,6 @@
         }
       }
 
-      let isScrubbing = false;
       track.addEventListener('mousedown', (e) => {
         isScrubbing = true;
         handleSeek(e);
@@ -2173,24 +2302,33 @@
       });
 
       fsBtn.addEventListener('click', () => {
-        if (!document.fullscreenElement) {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fsEl) {
           if (wrapper.requestFullscreen) {
             wrapper.requestFullscreen();
+          } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
           } else if (video.webkitEnterFullscreen) {
             video.webkitEnterFullscreen();
           }
         } else {
-          if (document.exitFullscreen) document.exitFullscreen();
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
         }
       });
 
-      document.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement === wrapper) {
-          fsBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
-        } else {
-          fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-        }
-      });
+      function updateFsIcon() {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        fsBtn.innerHTML = fsEl === wrapper
+          ? '<i class="fa-solid fa-compress"></i>'
+          : '<i class="fa-solid fa-expand"></i>';
+      }
+
+      document.addEventListener('fullscreenchange', updateFsIcon);
+      document.addEventListener('webkitfullscreenchange', updateFsIcon);
 
       initHlsSource();
     }
@@ -2206,6 +2344,9 @@
       const fill = wrapper.querySelector('.progress-fill');
       const timeText = wrapper.querySelector('.time-readout');
       const controlsBar = wrapper.querySelector('.cozy-controls-bar');
+
+      let isScrubbing = false;
+      const fsAutoHide = setupFullscreenAutoHide(wrapper, () => isScrubbing);
 
       controlsBar.addEventListener('click', (e) => e.stopPropagation());
 
@@ -2236,7 +2377,10 @@
 
       playBtn.addEventListener('click', togglePlay);
       centerPlay.addEventListener('click', togglePlay);
-      video.addEventListener('click', togglePlay);
+      video.addEventListener('click', () => {
+        if (fsAutoHide.shouldIgnoreVideoClick()) return;
+        togglePlay();
+      });
 
       video.addEventListener('play', () => updatePlayState(true));
       video.addEventListener('pause', () => updatePlayState(false));
@@ -2271,7 +2415,6 @@
         fill.style.width = `${pos * 100}%`;
       }
 
-      let isScrubbing = false;
       track.addEventListener('mousedown', (e) => {
         isScrubbing = true;
         handleSeek(e);
@@ -2284,24 +2427,33 @@
       });
 
       fsBtn.addEventListener('click', () => {
-        if (!document.fullscreenElement) {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fsEl) {
           if (wrapper.requestFullscreen) {
             wrapper.requestFullscreen();
+          } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
           } else if (video.webkitEnterFullscreen) {
             video.webkitEnterFullscreen();
           }
         } else {
-          if (document.exitFullscreen) document.exitFullscreen();
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
         }
       });
 
-      document.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement === wrapper) {
-          fsBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
-        } else {
-          fsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-        }
-      });
+      function updateFsIcon() {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        fsBtn.innerHTML = fsEl === wrapper
+          ? '<i class="fa-solid fa-compress"></i>'
+          : '<i class="fa-solid fa-expand"></i>';
+      }
+
+      document.addEventListener('fullscreenchange', updateFsIcon);
+      document.addEventListener('webkitfullscreenchange', updateFsIcon);
     }
 
     /* ================= LIGHTBOX (SINGLE & SLIDE) ================= */
