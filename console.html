@@ -381,6 +381,51 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* Member Access Codes UI */
+    .code-gen-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .code-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .code-item {
+      border: 2px solid var(--border-crisp);
+      background: #faf8fd;
+      padding: 12px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .code-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      background: #ffffff;
+      border: 2px solid var(--border-crisp);
+      padding: 4px 10px;
+      color: var(--deep-purple);
+      user-select: all;
+    }
+
+    .code-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-top: 4px;
     }
 
     .lock-screen-container {
@@ -474,7 +519,7 @@
     </div>
 
     <!-- Creator Form -->
-    <div class="pop-shell">
+    <div class="pop-shell" id="creatorFormCard">
       <div class="slide-card">
         <h2 id="formHeading" style="font-size: 1.25rem; margin-bottom: 14px;">✍️ Post New Content</h2>
         <input type="hidden" id="editId" value="" />
@@ -531,9 +576,14 @@
         </label>
 
         <div class="form-group" id="videoFieldGroup" style="display: none;">
-          <label>Video Direct MP4 Link</label>
-          <input type="url" id="postVid" class="form-control" placeholder="Paste direct .mp4 video URL" />
+          <label>Video Direct MP4 / HLS Link</label>
+          <input type="url" id="postVid" class="form-control" placeholder="Paste direct .mp4 or .m3u8 video URL" />
         </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="membersOnlyToggle" />
+          <span><i class="fa-solid fa-lock"></i> Members only post (requires 16-character access code)</span>
+        </label>
 
         <div style="display: flex; gap: 12px; margin-top: 14px;">
           <button class="btn-action" id="btnSubmit" onclick="savePost()">Publish to Feed</button>
@@ -552,6 +602,34 @@
       </div>
     </div>
 
+    <!-- Members-Only 16-Char Code Generator -->
+    <div class="pop-shell">
+      <div class="slide-card">
+        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">🎟️ Members-Only Access Codes</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+          Generate 16-character access codes. Members enter a code on any members-only post and it stays saved in their browser's <code>localStorage</code> for every members-only post and every visit.
+        </p>
+
+        <div class="code-gen-row">
+          <input
+            type="text"
+            id="memberCodeLabel"
+            class="form-control"
+            style="flex: 1; min-width: 220px;"
+            placeholder="Optional label (e.g. member name or note)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();generateMemberCode();}"
+          />
+          <button type="button" class="btn-action" onclick="generateMemberCode()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate 16-Char Code
+          </button>
+        </div>
+
+        <div id="memberCodesList" class="code-list">
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Loading member codes...</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -566,6 +644,7 @@
     let isPreviewOpen = false;
     const adminPostsMap = {};
     let attachedImages = []; // Array of { id, url, previewUrl, name, status }
+    let memberCodes = [];    // Array of { code, label, created_at }
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -613,11 +692,30 @@
     }
 
     function parsePostContent(post) {
-      const raw = post.content || '';
-      const hasMdPrefix = raw.startsWith('<!--md-->');
-      const isMarkdown = Boolean(post.is_markdown) || hasMdPrefix;
-      const cleanText = hasMdPrefix ? raw.replace(/^<!--md-->\r?\n?/, '') : raw;
-      return { isMarkdown, cleanText };
+      let text = post.content || '';
+      let hasMembersPrefix = false;
+      let hasMdPrefix = false;
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        if (text.startsWith('<!--members-->')) {
+          hasMembersPrefix = true;
+          text = text.replace(/^<!--members-->\r?\n?/, '');
+          changed = true;
+        }
+        if (text.startsWith('<!--md-->')) {
+          hasMdPrefix = true;
+          text = text.replace(/^<!--md-->\r?\n?/, '');
+          changed = true;
+        }
+      }
+
+      return {
+        isMembersOnly: Boolean(post.is_members_only) || hasMembersPrefix,
+        isMarkdown: Boolean(post.is_markdown) || hasMdPrefix,
+        cleanText: text
+      };
     }
 
     function parseImageUrls(imageField) {
@@ -671,6 +769,7 @@
         document.getElementById('adminApp').style.display = 'flex';
         sessionStorage.setItem('console_session_unlocked', 'true');
         loadAdminPosts();
+        loadMemberCodes();
       } else {
         document.getElementById('lockError').style.display = 'block';
         document.getElementById('passcodeInput').value = '';
@@ -712,6 +811,146 @@
       document.getElementById('currentPassInput').value = '';
       document.getElementById('newPassInput').value = '';
       alert(`Passcode successfully updated in your database! Use "${newPass}" next time.`);
+    }
+
+    /* ================= 16-CHAR MEMBER CODE GENERATOR ================= */
+    function createRandom16CharCode() {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const bytes = new Uint8Array(16);
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+      }
+      let out = '';
+      for (let i = 0; i < 16; i++) {
+        out += alphabet[bytes[i] % alphabet.length];
+      }
+      return out;
+    }
+
+    async function loadMemberCodes() {
+      const container = document.getElementById('memberCodesList');
+      if (!db) {
+        container.innerHTML = `<p style="color: var(--coral);">Database credentials not injected yet.</p>`;
+        return;
+      }
+
+      try {
+        const { data, error } = await db
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'member_codes')
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data && data.value) {
+          const parsed = JSON.parse(data.value);
+          memberCodes = Array.isArray(parsed)
+            ? parsed.map(item => typeof item === 'string'
+                ? { code: item, label: '', created_at: null }
+                : item)
+            : [];
+        } else {
+          memberCodes = [];
+        }
+        renderMemberCodes();
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--coral);">Could not load member codes: ${escapeHTML(err.message)}</p>`;
+      }
+    }
+
+    function renderMemberCodes() {
+      const container = document.getElementById('memberCodesList');
+      if (!memberCodes.length) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; font-weight: 600;">No member access codes generated yet.</p>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      memberCodes.forEach((entry, idx) => {
+        const item = document.createElement('div');
+        item.className = 'code-item';
+        const dateStr = entry.created_at ? new Date(entry.created_at).toLocaleString() : 'Saved';
+        const labelHtml = entry.label ? `<strong>${escapeHTML(entry.label)}</strong> · ` : '';
+
+        item.innerHTML = `
+          <div>
+            <span class="code-value">${escapeHTML(entry.code)}</span>
+            <div class="code-meta">${labelHtml}Created: ${escapeHTML(dateStr)}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-secondary" onclick="copyMemberCode('${escapeHTML(entry.code)}', this)">
+              <i class="fa-solid fa-copy"></i> Copy
+            </button>
+            <button type="button" class="btn-secondary btn-danger" onclick="deleteMemberCode(${idx})">
+              <i class="fa-solid fa-trash"></i> Revoke
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    async function persistMemberCodes() {
+      const { error } = await db.from('site_settings').upsert([
+        { key: 'member_codes', value: JSON.stringify(memberCodes) }
+      ]);
+      if (error) throw error;
+    }
+
+    async function generateMemberCode() {
+      if (!db) return alert('Database connection not established.');
+
+      const labelInput = document.getElementById('memberCodeLabel');
+      const label = labelInput.value.trim();
+
+      let code = createRandom16CharCode();
+      while (memberCodes.some(c => c.code === code)) {
+        code = createRandom16CharCode();
+      }
+
+      memberCodes.unshift({
+        code,
+        label,
+        created_at: new Date().toISOString()
+      });
+
+      try {
+        await persistMemberCodes();
+        labelInput.value = '';
+        renderMemberCodes();
+      } catch (err) {
+        memberCodes.shift();
+        alert('Failed to save generated code: ' + err.message);
+      }
+    }
+
+    async function copyMemberCode(code, btn) {
+      try {
+        await navigator.clipboard.writeText(code);
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+      } catch (e) {
+        alert('Code: ' + code);
+      }
+    }
+
+    async function deleteMemberCode(index) {
+      const entry = memberCodes[index];
+      if (!entry) return;
+      if (!confirm(`Revoke access code ${entry.code}? Members using it will lose access to members-only posts.`)) return;
+
+      const removed = memberCodes.splice(index, 1)[0];
+      try {
+        await persistMemberCodes();
+        renderMemberCodes();
+      } catch (err) {
+        memberCodes.splice(index, 0, removed);
+        alert('Failed to revoke code: ' + err.message);
+      }
     }
 
     /* ================= MULTI-IMAGE DROPZONE & MANAGER ================= */
@@ -778,7 +1017,6 @@
       const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
       if (imageFiles.length === 0) return alert('Please select valid image file(s).');
 
-      // Clear file input so the same file can be re-selected later if needed
       document.getElementById('fileInput').value = '';
 
       const uploadTasks = imageFiles.map(async (file) => {
@@ -888,7 +1126,7 @@
       container.innerHTML = '';
       data.forEach(p => {
         adminPostsMap[p.id] = p;
-        const { isMarkdown, cleanText } = parsePostContent(p);
+        const { isMembersOnly, isMarkdown, cleanText } = parsePostContent(p);
         const images = parseImageUrls(p.image_url);
         const imgLabel = images.length === 0
           ? 'No image'
@@ -899,12 +1137,13 @@
         const item = document.createElement('div');
         item.className = 'admin-list-item';
         item.innerHTML = `
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 240px;">
             <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 4px;">
               ${escapeHTML(cleanText.substring(0, 100))}${cleanText.length > 100 ? '...' : ''}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
               Date: ${new Date(p.created_at).toLocaleString()} | Votes: ${p.votes} | 
+              ${isMembersOnly ? '🔒 Members Only' : '🌐 Public'} | 
               ${isMarkdown ? '📝 Markdown' : 'Plain Text'} | 
               ${imgLabel} | 
               ${p.video_url ? '🎬 Video' : 'No video'}
@@ -929,8 +1168,9 @@
         return alert('Please wait for all image uploads to finish.');
       }
 
-      const rawText = document.getElementById('postText').value.trim().replace(/^<!--md-->\r?\n?/, '');
+      const rawText = document.getElementById('postText').value.trim().replace(/^(?:<!--(?:members|md)-->\r?\n?)+/, '');
       const useMarkdown = document.getElementById('postFormat').value === 'markdown';
+      const isMembersOnly = document.getElementById('membersOnlyToggle').checked;
       const validUrls = attachedImages.filter(img => img.status === 'done' && img.url).map(img => img.url);
       const imageValue = validUrls.length === 0
         ? null
@@ -948,7 +1188,8 @@
         content: rawText,
         image_url: imageValue,
         video_url: videoUrl || null,
-        is_markdown: useMarkdown
+        is_markdown: useMarkdown,
+        is_members_only: isMembersOnly
       };
 
       let error;
@@ -958,10 +1199,18 @@
         ({ error } = await db.from('posts').insert([{ ...payload, votes: 1 }]));
       }
 
-      // Fallback if the `is_markdown` column doesn't exist in Supabase yet
-      if (error && error.message && error.message.toLowerCase().includes('is_markdown')) {
+      // Automatic fallback if `is_markdown` or `is_members_only` columns don't exist in Supabase yet
+      if (error && error.message && (
+        error.message.toLowerCase().includes('is_markdown') ||
+        error.message.toLowerCase().includes('is_members_only')
+      )) {
+        const prefixes = [];
+        if (isMembersOnly) prefixes.push('<!--members-->');
+        if (useMarkdown) prefixes.push('<!--md-->');
+        const fallbackContent = prefixes.length ? `${prefixes.join('\n')}\n${rawText}` : rawText;
+
         const fallbackPayload = {
-          content: useMarkdown ? `<!--md-->\n${rawText}` : rawText,
+          content: fallbackContent,
           image_url: imageValue,
           video_url: videoUrl || null
         };
@@ -991,12 +1240,13 @@
       const post = adminPostsMap[id];
       if (!post) return;
 
-      const { isMarkdown, cleanText } = parsePostContent(post);
+      const { isMembersOnly, isMarkdown, cleanText } = parsePostContent(post);
       if (isPreviewOpen) toggleMdPreview();
 
       document.getElementById('editId').value = post.id;
       document.getElementById('postText').value = cleanText;
       document.getElementById('postFormat').value = isMarkdown ? 'markdown' : 'plain';
+      document.getElementById('membersOnlyToggle').checked = isMembersOnly;
       handleFormatChange();
 
       const existingUrls = parseImageUrls(post.image_url);
@@ -1025,7 +1275,7 @@
       document.getElementById('formHeading').textContent = '✏️ Edit Post';
       document.getElementById('btnSubmit').textContent = 'Save Changes';
       document.getElementById('btnCancel').style.display = 'inline-block';
-      window.scrollTo({ top: 340, behavior: 'smooth' });
+      document.getElementById('creatorFormCard').scrollIntoView({ behavior: 'smooth' });
     }
 
     function resetEdit() {
@@ -1044,6 +1294,7 @@
       document.getElementById('postVid').value = '';
       document.getElementById('videoToggle').checked = false;
       document.getElementById('videoFieldGroup').style.display = 'none';
+      document.getElementById('membersOnlyToggle').checked = false;
       clearImages();
     }
 
@@ -1068,6 +1319,7 @@
       document.getElementById('lockScreen').style.display = 'none';
       document.getElementById('adminApp').style.display = 'flex';
       loadAdminPosts();
+      loadMemberCodes();
     }
   </script>
 </body>
