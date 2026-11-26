@@ -950,7 +950,7 @@
       cursor: pointer;
     }
 
-    /* HLS Live Stream + Live Chat Layout */
+    /* HLS Live Stream + Fullscreen-Only Live Chat Layout */
     .hls-live-layout {
       width: 100%;
     }
@@ -975,9 +975,59 @@
       background: #000000;
     }
 
+    /* Chat is NOT visible in feed; only in fullscreen when clicked */
     .hls-chat-panel {
-      width: 100%;
-      margin-bottom: 16px;
+      display: none;
+    }
+
+    .hls-chat-header {
+      background: #2d1d42;
+      color: #f0eaff;
+      border-bottom: 2px solid #885bc4;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .hls-chat-title {
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #f0eaff;
+    }
+
+    .hls-chat-title .hls-dot {
+      background: var(--green);
+    }
+
+    .hls-chat-minimize-btn {
+      width: 30px;
+      height: 28px;
+      background: #181124;
+      color: #f0eaff;
+      border: 2px solid #885bc4;
+      box-shadow: 2px 2px 0 #181124;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.18s var(--spring-slide), background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .hls-chat-minimize-btn i {
+      transform: translateY(-2px);
+    }
+
+    .hls-chat-minimize-btn:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+      transform: translate(-1px, -1px);
     }
 
     .divcord-chat-frame {
@@ -990,7 +1040,7 @@
       display: block;
     }
 
-    /* Fullscreen Chat Toggle Icon (always shown at bottom-right in fullscreen) */
+    /* Fullscreen Chat Toggle Icon (always shown at bottom-right in fullscreen when minimized) */
     .hls-fs-chat-btn {
       display: none;
       position: absolute;
@@ -1014,11 +1064,6 @@
       background: var(--soft-cyan);
       color: #181124;
       transform: translate(-2px, -2px);
-    }
-
-    .hls-live-layout.fs-chat-open .hls-fs-chat-btn {
-      background: var(--green);
-      color: #1b380b;
     }
 
     /* Fullscreen rules for regular video & HLS layout */
@@ -1106,7 +1151,8 @@
 
     .hls-live-layout:fullscreen.fs-chat-open .hls-chat-panel,
     .hls-live-layout:-webkit-full-screen.fs-chat-open .hls-chat-panel {
-      display: block;
+      display: flex;
+      flex-direction: column;
       flex: 0 0 360px;
       width: 360px;
       height: 100vh;
@@ -1118,16 +1164,23 @@
 
     .hls-live-layout:fullscreen.fs-chat-open .divcord-chat-frame,
     .hls-live-layout:-webkit-full-screen.fs-chat-open .divcord-chat-frame {
+      flex: 1 1 auto;
+      min-height: 0;
       width: 100%;
       height: 100%;
       border: none;
       box-shadow: none;
     }
 
-    /* Chat icon always appears in bottom right of stream in fullscreen */
+    /* Chat icon always appears in bottom right of stream in fullscreen when minimized; hides when chat is open */
     .hls-live-layout:fullscreen .hls-fs-chat-btn,
     .hls-live-layout:-webkit-full-screen .hls-fs-chat-btn {
       display: flex;
+    }
+
+    .hls-live-layout:fullscreen.fs-chat-open .hls-fs-chat-btn,
+    .hls-live-layout:-webkit-full-screen.fs-chat-open .hls-fs-chat-btn {
+      display: none;
     }
 
     .hls-live-layout:fullscreen .cozy-player-wrapper.is-hls.fs-idle .hls-fs-chat-btn,
@@ -2229,7 +2282,7 @@
                   </div>
                   <div class="player-center-play"><i class="fa-solid fa-play"></i></div>
                   <video class="cozy-video-element" playsinline preload="none"></video>
-                  <button type="button" class="hls-fs-chat-btn" title="Toggle Live Chat" aria-label="Toggle Live Chat">
+                  <button type="button" class="hls-fs-chat-btn" title="Open Live Chat" aria-label="Open Live Chat">
                     <i class="fa-solid fa-comments"></i>
                   </button>
                   <div class="cozy-controls-bar">
@@ -2248,6 +2301,14 @@
                   </div>
                 </div>
                 <div class="hls-chat-panel">
+                  <div class="hls-chat-header">
+                    <span class="hls-chat-title">
+                      <span class="hls-dot"></span> LIVE CHAT
+                    </span>
+                    <button type="button" class="hls-chat-minimize-btn" title="Minimize Chat" aria-label="Minimize Chat">
+                      <i class="fa-solid fa-window-minimize"></i>
+                    </button>
+                  </div>
                   <iframe
                     id="${chatFrameId}"
                     class="divcord-chat-frame"
@@ -2464,6 +2525,7 @@
       const wrapper = hlsLayout.querySelector('.cozy-player-wrapper.is-hls');
       const chatFrame = hlsLayout.querySelector('.divcord-chat-frame');
       const chatToggleBtn = hlsLayout.querySelector('.hls-fs-chat-btn');
+      const chatMinimizeBtn = hlsLayout.querySelector('.hls-chat-minimize-btn');
       const hlsUrl = wrapper.getAttribute('data-hls-url');
       const video = wrapper.querySelector('video');
       const playBtn = wrapper.querySelector('.btn-play-toggle');
@@ -2497,10 +2559,14 @@
       if (chatToggleBtn) {
         chatToggleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const isOpen = hlsLayout.classList.toggle('fs-chat-open');
-          chatToggleBtn.innerHTML = isOpen
-            ? '<i class="fa-solid fa-xmark"></i>'
-            : '<i class="fa-solid fa-comments"></i>';
+          hlsLayout.classList.add('fs-chat-open');
+        });
+      }
+
+      if (chatMinimizeBtn) {
+        chatMinimizeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          hlsLayout.classList.remove('fs-chat-open');
         });
       }
 
@@ -2756,9 +2822,6 @@
         fsBtn.innerHTML = isFs
           ? '<i class="fa-solid fa-compress"></i>'
           : '<i class="fa-solid fa-expand"></i>';
-        if (!isFs && chatToggleBtn) {
-          chatToggleBtn.innerHTML = '<i class="fa-solid fa-comments"></i>';
-        }
       }
 
       document.addEventListener('fullscreenchange', updateFsState);
