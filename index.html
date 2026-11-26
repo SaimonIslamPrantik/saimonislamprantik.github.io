@@ -566,8 +566,16 @@
     .post-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
       margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .post-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .post-mini-avatar {
@@ -591,6 +599,127 @@
       font-size: 0.8rem;
       color: var(--text-muted);
       font-weight: 600;
+    }
+
+    .members-pill {
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      background: var(--lavender);
+      color: #2b1742;
+      border: 2px solid var(--border-crisp);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 2px 2px 0 var(--border-crisp);
+    }
+
+    body.dark-mode .members-pill {
+      background: #2b1a3f;
+      color: var(--lavender);
+    }
+
+    .members-pill.unlocked {
+      background: var(--green);
+      color: #1b380b;
+    }
+
+    /* Members-Only Lock Box */
+    .members-lock-box {
+      background: var(--vote-bg);
+      border: 2px dashed var(--border-crisp);
+      padding: 24px 20px;
+      margin: 6px 0 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+    }
+
+    .members-lock-icon {
+      width: 46px;
+      height: 46px;
+      background: var(--placeholder-bg);
+      border: 2px solid var(--border-crisp);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: var(--text-main);
+      box-shadow: 3px 3px 0 var(--border-crisp);
+    }
+
+    .members-lock-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .members-lock-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      max-width: 440px;
+      line-height: 1.45;
+    }
+
+    .members-unlock-form {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .members-code-input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 2px solid var(--border-crisp);
+      padding: 9px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-align: center;
+      outline: none;
+    }
+
+    .members-code-input:focus {
+      box-shadow: 3px 3px 0 var(--border-crisp);
+    }
+
+    .members-unlock-btn {
+      background: var(--green);
+      color: #1b380b;
+      border: 2px solid var(--border-crisp);
+      padding: 9px 18px;
+      font-size: 0.86rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 var(--border-crisp);
+      transition: transform 0.16s var(--spring-slide), background-color 0.16s ease;
+    }
+
+    .members-unlock-btn:hover {
+      background: var(--soft-cyan);
+      color: #181124;
+      transform: translate(-2px, -2px);
+    }
+
+    .members-code-error {
+      display: none;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--coral);
+      margin-top: 4px;
     }
 
     .post-content {
@@ -1405,6 +1534,8 @@
       justify-content: space-between;
       border-top: 2px solid var(--border-crisp);
       padding-top: 14px;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .vote-pill {
@@ -1636,10 +1767,6 @@
   <script>
     /* ===================================================
        CREDENTIAL CONFIGURATION
-       - Automatically receives values if GitHub Actions injects
-         __SUPABASE_URL__ and __SUPABASE_KEY__ into index.html.
-       - Or replace "__SUPABASE_URL__" / "__SUPABASE_KEY__" below
-         directly with your Supabase Project URL & Anon Key.
     =================================================== */
     const RAW_SUPABASE_URL = "__SUPABASE_URL__";
     const RAW_SUPABASE_KEY = "__SUPABASE_KEY__";
@@ -1651,11 +1778,14 @@
     const CONFIG_LASTFM_USER  = RAW_LASTFM_USER.startsWith('__')  ? "" : RAW_LASTFM_USER;
     const CONFIG_LASTFM_KEY   = RAW_LASTFM_KEY.startsWith('__')   ? "" : RAW_LASTFM_KEY;
 
-    // Reads from CONFIG first, then falls back to localStorage
     const SUPABASE_URL = CONFIG_SUPABASE_URL || localStorage.getItem('SP_URL') || '';
     const SUPABASE_KEY = CONFIG_SUPABASE_KEY || localStorage.getItem('SP_KEY') || '';
+    const MEMBER_STORAGE_KEY = 'PRANTIK_MEMBER_CODE';
+
     let supabaseClient = null;
     const postImagesMap = {};
+    let cachedPosts = [];
+    let validMemberCodes = new Set();
 
     if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1685,7 +1815,6 @@
         --spring-slide: cubic-bezier(0.2, 0.9, 0.3, 1.25);
       }
 
-      /* Zero-Radius Strictness */
       *, *::before, *::after {
         border-radius: 0 !important;
       }
@@ -1725,7 +1854,6 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
       }
 
-      /* Top Chrome Bar */
       #embed-bar {
         background: var(--placeholder-bg) !important;
         color: var(--text-main) !important;
@@ -1744,7 +1872,6 @@
         text-transform: lowercase !important;
       }
 
-      /* Sidebar */
       #embed-aside {
         background: var(--surface-subtle) !important;
         color: var(--text-main) !important;
@@ -1766,7 +1893,6 @@
         transform: translate(-2px, -2px) !important;
       }
 
-      /* Message Feed */
       #messages {
         background: transparent !important;
         position: relative !important;
@@ -1829,7 +1955,6 @@
         font-weight: 800 !important;
       }
 
-      /* Composer & Inputs */
       #composer {
         background: var(--card-bg) !important;
         border-top: 2px solid var(--border-crisp) !important;
@@ -1858,7 +1983,6 @@
         box-shadow: 4px 4px 0 var(--border-crisp) !important;
       }
 
-      /* Hard-Offset Cozy Buttons */
       button {
         background: var(--card-bg) !important;
         color: var(--text-main) !important;
@@ -1893,7 +2017,6 @@
         color: #181124 !important;
       }
 
-      /* Auth / Sign-In Card */
       #auth {
         background: transparent !important;
       }
@@ -1905,7 +2028,6 @@
         box-shadow: 6px 6px 0 var(--placeholder-bg) !important;
       }
 
-      /* Scrollbars */
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-track { background: var(--surface-subtle); border-left: 2px solid var(--border-crisp); }
       ::-webkit-scrollbar-thumb { background: #2b1a3f; border: 2px solid var(--border-crisp); }
@@ -1921,6 +2043,83 @@
         });
       } catch (e) {
         console.warn('Divcord embed init error:', e);
+      }
+    }
+
+    /* ================= MEMBER ACCESS HELPERS ================= */
+    function parseMemberCodeList(rawVal) {
+      const codes = new Set();
+      if (!rawVal) return codes;
+      try {
+        const parsed = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
+        if (Array.isArray(parsed)) {
+          parsed.forEach(item => {
+            const c = typeof item === 'string' ? item : (item && item.code ? item.code : '');
+            const clean = String(c).trim().toUpperCase();
+            if (clean.length === 16) codes.add(clean);
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to parse member codes:', e);
+      }
+      return codes;
+    }
+
+    async function fetchValidMemberCodes() {
+      if (!supabaseClient) return validMemberCodes;
+      try {
+        const { data } = await supabaseClient
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'member_codes')
+          .maybeSingle();
+
+        if (data && data.value) {
+          validMemberCodes = parseMemberCodeList(data.value);
+        } else {
+          validMemberCodes = new Set();
+        }
+      } catch (e) {
+        console.warn('Could not fetch member codes:', e);
+      }
+      return validMemberCodes;
+    }
+
+    function isCurrentVisitorMember() {
+      const saved = (localStorage.getItem(MEMBER_STORAGE_KEY) || '').trim().toUpperCase();
+      return saved.length === 16 && validMemberCodes.has(saved);
+    }
+
+    async function handleMemberUnlock(event, formEl) {
+      event.preventDefault();
+      const input = formEl.querySelector('.members-code-input');
+      const errorEl = formEl.parentElement.querySelector('.members-code-error');
+      const submitBtn = formEl.querySelector('.members-unlock-btn');
+      const entered = (input.value || '').replace(/\s+/g, '').toUpperCase();
+
+      if (entered.length !== 16) {
+        errorEl.textContent = 'Please enter a valid 16-character member code.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const origText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Checking...';
+      errorEl.style.display = 'none';
+
+      await fetchValidMemberCodes();
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = origText;
+
+      if (validMemberCodes.has(entered)) {
+        localStorage.setItem(MEMBER_STORAGE_KEY, entered);
+        renderFeedPosts();
+      } else {
+        errorEl.textContent = 'Invalid or revoked 16-character code.';
+        errorEl.style.display = 'block';
+        input.focus();
       }
     }
 
@@ -2060,7 +2259,6 @@
       let username = CONFIG_LASTFM_USER || localStorage.getItem('LASTFM_USER') || '';
       let apiKey   = CONFIG_LASTFM_KEY  || localStorage.getItem('LASTFM_KEY')  || '';
 
-      // If not filled in code, pull from Supabase site_settings table
       if ((!username || !apiKey) && supabaseClient) {
         try {
           const { data } = await supabaseClient.from('site_settings').select('*');
@@ -2115,11 +2313,30 @@
 
     /* ================= CONTENT & IMAGE PARSING ================= */
     function parsePostContent(post) {
-      const raw = post.content || '';
-      const hasMdPrefix = raw.startsWith('<!--md-->');
-      const isMarkdown = Boolean(post.is_markdown) || hasMdPrefix;
-      const cleanText = hasMdPrefix ? raw.replace(/^<!--md-->\r?\n?/, '') : raw;
-      return { isMarkdown, cleanText };
+      let text = post.content || '';
+      let hasMembersPrefix = false;
+      let hasMdPrefix = false;
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        if (text.startsWith('<!--members-->')) {
+          hasMembersPrefix = true;
+          text = text.replace(/^<!--members-->\r?\n?/, '');
+          changed = true;
+        }
+        if (text.startsWith('<!--md-->')) {
+          hasMdPrefix = true;
+          text = text.replace(/^<!--md-->\r?\n?/, '');
+          changed = true;
+        }
+      }
+
+      return {
+        isMembersOnly: Boolean(post.is_members_only) || hasMembersPrefix,
+        isMarkdown: Boolean(post.is_markdown) || hasMdPrefix,
+        cleanText: text
+      };
     }
 
     function parseImageUrls(imageField) {
@@ -2155,7 +2372,7 @@
       return escapeHTML(mdText || '');
     }
 
-    /* ================= FEED LOADER ================= */
+    /* ================= FEED LOADER & RENDERER ================= */
     async function loadPosts() {
       const feedList = document.getElementById('feedList');
       if (!supabaseClient) {
@@ -2173,10 +2390,12 @@
         return;
       }
 
-      const { data, error } = await supabaseClient
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [postsRes] = await Promise.all([
+        supabaseClient.from('posts').select('*').order('created_at', { ascending: false }),
+        fetchValidMemberCodes()
+      ]);
+
+      const { data, error } = postsRes;
 
       if (error) {
         console.error('Supabase posts load error:', error);
@@ -2197,18 +2416,86 @@
         return;
       }
 
-      // Show red border around profile picture as long as any post contains an HLS video link
-      const hasHlsPost = data.some(post => isHlsUrl(post.video_url));
-      setProfileLiveStatus(hasHlsPost);
+      cachedPosts = data;
+      renderFeedPosts();
+    }
+
+    function renderFeedPosts() {
+      const feedList = document.getElementById('feedList');
+      const memberUnlocked = isCurrentVisitorMember();
+
+      const hasVisibleHlsPost = cachedPosts.some(post => {
+        const { isMembersOnly } = parsePostContent(post);
+        if (isMembersOnly && !memberUnlocked) return false;
+        return isHlsUrl(post.video_url);
+      });
+      setProfileLiveStatus(hasVisibleHlsPost);
 
       let divcordIdAssigned = false;
-
       feedList.innerHTML = '';
-      data.forEach(post => {
+
+      cachedPosts.forEach(post => {
         const shell = document.createElement('div');
         shell.className = 'pop-shell';
 
-        const { isMarkdown, cleanText } = parsePostContent(post);
+        const { isMembersOnly, isMarkdown, cleanText } = parsePostContent(post);
+
+        // If members-only and not unlocked yet, render only the gate (never leak secret content/media into DOM)
+        if (isMembersOnly && !memberUnlocked) {
+          shell.innerHTML = `
+            <article class="slide-card post-card-inner" data-id="${post.id}">
+              <div class="post-header">
+                <div class="post-header-left">
+                  <img class="post-mini-avatar" src="profile.png" alt="prantik" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'" />
+                  <div>
+                    <div class="post-author">
+                      prantik
+                      <img class="name-badge" src="tick.png" alt="verified" />
+                      <img class="name-badge" src="e.gif" alt="badge" />
+                    </div>
+                    <div class="post-time">${new Date(post.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+                <span class="members-pill"><i class="fa-solid fa-lock"></i> Members Only</span>
+              </div>
+
+              <div class="members-lock-box">
+                <div class="members-lock-icon"><i class="fa-solid fa-key"></i></div>
+                <div class="members-lock-title">Members-Only Post</div>
+                <div class="members-lock-desc">
+                  Enter your 16-character member code below to unlock this post and every members-only post on this site.
+                </div>
+                <form class="members-unlock-form" onsubmit="handleMemberUnlock(event, this)">
+                  <input
+                    type="text"
+                    class="members-code-input"
+                    maxlength="16"
+                    placeholder="16-CHAR CODE"
+                    autocomplete="off"
+                    spellcheck="false"
+                    required
+                  />
+                  <button type="submit" class="members-unlock-btn">
+                    <i class="fa-solid fa-unlock"></i> Unlock
+                  </button>
+                </form>
+                <div class="members-code-error"></div>
+              </div>
+
+              <div class="post-footer">
+                <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted);">
+                  <i class="fa-solid fa-shield-halved"></i> Saved in browser once unlocked
+                </div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
+                  ✦ members only
+                </div>
+              </div>
+            </article>
+          `;
+          feedList.appendChild(shell);
+          return;
+        }
+
         const contentHtml = isMarkdown ? renderMarkdown(cleanText) : escapeHTML(cleanText);
         const contentClass = isMarkdown ? 'post-content markdown-body' : 'post-content';
         const images = parseImageUrls(post.image_url);
@@ -2344,18 +2631,25 @@
           }
         }
 
+        const headerBadgeHtml = isMembersOnly
+          ? `<span class="members-pill unlocked"><i class="fa-solid fa-unlock"></i> Members Unlocked</span>`
+          : '';
+
         shell.innerHTML = `
           <article class="slide-card post-card-inner" data-id="${post.id}" data-votes="${post.votes}">
             <div class="post-header">
-              <img class="post-mini-avatar" src="profile.png" alt="prantik" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'" />
-              <div>
-                <div class="post-author">
-                  prantik
-                  <img class="name-badge" src="tick.png" alt="verified" />
-                  <img class="name-badge" src="e.gif" alt="badge" />
+              <div class="post-header-left">
+                <img class="post-mini-avatar" src="profile.png" alt="prantik" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'" />
+                <div>
+                  <div class="post-author">
+                    prantik
+                    <img class="name-badge" src="tick.png" alt="verified" />
+                    <img class="name-badge" src="e.gif" alt="badge" />
+                  </div>
+                  <div class="post-time">${new Date(post.created_at).toLocaleDateString()}</div>
                 </div>
-                <div class="post-time">${new Date(post.created_at).toLocaleDateString()}</div>
               </div>
+              ${headerBadgeHtml}
             </div>
             <div class="${contentClass}">${contentHtml}</div>
             ${mediaHtml}
@@ -2366,13 +2660,12 @@
                 <button class="vote-btn down" onclick="handleDbVote('${post.id}', -1, this)">▼</button>
               </div>
               <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted);">
-                ✦ verified post
+                ${isMembersOnly ? '✦ members only' : '✦ verified post'}
               </div>
             </div>
           </article>
         `;
 
-        // Single image click & expand handlers
         shell.querySelectorAll('.post-media, .post-media-frame .btn-fullscreen-trigger').forEach(el => {
           el.addEventListener('click', () => {
             const pId = el.getAttribute('data-post-id');
@@ -2380,7 +2673,6 @@
           });
         });
 
-        // Markdown links & inline images
         if (isMarkdown) {
           shell.querySelectorAll('.markdown-body a').forEach(a => {
             a.setAttribute('target', '_blank');
